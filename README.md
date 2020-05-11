@@ -1,4 +1,4 @@
-Shape Modeling and Geometry Processing - Final project <br>
+# Shape Modeling and Geometry Processing - Final project # <br>
 - Alessia Paccagnella
 - Yingyan Xu
 - Xiaojing Xia
