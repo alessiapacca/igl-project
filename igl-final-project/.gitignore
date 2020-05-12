@@ -1,6 +1,6 @@
 cmake-build-debug
 build
-
 .DS_Store
-/data/.DS_Store
-/.vscode/settings.json
+.igl-final-project/.DS_Store
+igl-final-project/data/.DS_Store
+igl-final-project/.vscode/settings.json
