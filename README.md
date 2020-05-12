@@ -20,4 +20,4 @@
 
 - Currently using only the provided landmark example
 - To be updated when more landmark data available
-- Click `Rigid Alignment` to see the demo
+- Click the `Rigid Alignment` button to see the demo
