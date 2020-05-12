@@ -256,10 +256,7 @@ void applySelection()
     }
     currently_selected_but_not_applied_vertex = -1;
     onNewHandleID();
-    // cout << handle_vertex_positions << endl;
-    // MatrixXd selected_v_pos;
-    // igl::slice(handle_vertex_positions, selected_v, 1, selected_v_pos);
-    // viewer.data().;
+
     viewer.data().set_points(handle_vertex_positions,Eigen::RowVector3d(0,1,0));
     selected_v.resize(0,1);
 
