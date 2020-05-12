@@ -13,3 +13,11 @@
 3. Press A to apply landmark selection (or else selection will not be saved)
 
 ```
+
+---
+
+## rigid alignment example
+
+- Currently using only the provided landmark example
+- To be updated when more landmark data available
+- Click `Rigid Alignment` to see the demo
