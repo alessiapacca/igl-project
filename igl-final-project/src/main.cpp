@@ -52,6 +52,7 @@ typedef Eigen::Triplet<double> T;
 Eigen::MatrixXd vertex_colors;
 
 //function declarations (see below for implementation)
+bool load_mesh(string filename);
 bool solve(Viewer& viewer);
 void get_new_handle_locations();
 bool compute_closest_vertex();
@@ -64,9 +65,91 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers);
 void onNewHandleID();
 void applySelection();
 
+//--------------------------------------------------------
+// 12/05/2020 by Yingyan  
+// rigid alignment draft version
+// currently use only the given landmark example
+
+// template vertices and faces
+Eigen::MatrixXd V_temp(0,3);
+Eigen::MatrixXi F_temp(0,3);
+
+// max number of landmarks
+const int MAX_NUM_LANDMARK = 30;
+
+// read landmark from file
+VectorXi read_landmarks(const char *filename)
+{
+    VectorXi landmarks;
+    landmarks.setZero(MAX_NUM_LANDMARK);
+
+    fstream fin(filename);
+    int vertex_id = 0, landmark_num = 0, cnt = 0;
+    while(fin >> vertex_id >> landmark_num) {
+        landmarks(landmark_num-1) = vertex_id;
+        cnt = max(cnt, landmark_num);
+    }
+
+    landmarks.conservativeResize(cnt);
+
+    return landmarks;
+}
+
+// compute average distance to mean landmark
+inline double avg_dist(const MatrixXd& mat)
+{
+    RowVector3d c = mat.colwise().mean();
+    VectorXd dist = (mat.rowwise() - c).colwise().norm();
+    return dist.mean();
+}
+
+void rigid_alignment()
+{
+    //load scanned mesh
+    load_mesh("../data/landmarks_example/person0_.obj");
+    VectorXi landmarks = read_landmarks("../data/landmarks_example/person0__23landmarks");
+    MatrixXd landmark_positions(0, 3);
+    igl::slice(V, landmarks, 1, landmark_positions);
+    
+    // load template
+    igl::read_triangle_mesh("../data/landmarks_example/headtemplate.obj",V_temp,F_temp);
+    VectorXi landmarks_temp = read_landmarks("../data/landmarks_example/headtemplate_23landmarks");
+    MatrixXd landmark_positions_temp(0, 3);
+    igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
+
+    // center template at (0,0,0)
+    RowVector3d centroid_temp = V_temp.colwise().mean();
+    V_temp = V_temp.rowwise() - centroid_temp;
+
+    // scale template and update landmark positions
+    double d_to_mean_landmark = avg_dist(landmark_positions);
+    double d_to_mean_landmark_temp = avg_dist(landmark_positions_temp);
+    double scaling_factor = d_to_mean_landmark / d_to_mean_landmark_temp;
+    V_temp *= scaling_factor;
+
+    // center at landmark mean
+    RowVector3d lm_centroid = landmark_positions.colwise().mean();
+    RowVector3d lm_centroid_temp = landmark_positions_temp.colwise().mean();
+    V = V.rowwise() - lm_centroid;
+    V_temp = V_temp.rowwise() - lm_centroid_temp;
+    igl::slice(V, landmarks, 1, landmark_positions);
+    igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
+
+    // compute rotation matrix via SVD
+    Matrix3d R = landmark_positions.transpose() * landmark_positions_temp;
+    JacobiSVD<Matrix3d> svd(R, ComputeThinU | ComputeThinV);
+    Matrix3d svd_U = svd.matrixU();
+    Matrix3d svd_V = svd.matrixV();
+    Matrix3d I = Matrix3d::Identity();
+    if((svd_U * svd_V.transpose()).determinant() < 0) I(2, 2) = -1; // check for reflection case
+    Matrix3d bestRotation = svd_U * I * svd_V.transpose();
+    V *= bestRotation;
+
+}
+//-----------------------------------------------------------
+
 bool solve(Viewer& viewer)
 {
-
     return true;
 };
 
@@ -146,6 +229,33 @@ int main(int argc, char *argv[])
                 handle_id.setConstant(V.rows(),1,-1);
                 viewer.data().clear_points();
             }
+
+            // -----------------------------------------------------
+            // 12/05/2020 by Yingyan
+            // test rigid alignment
+            if (ImGui::Button("Rigid Alignment", ImVec2(-1,0)))
+            {
+                rigid_alignment();
+                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
+                MatrixXi F_total(F.rows() + F_temp.rows(), 3);
+                V_total << V, V_temp;
+                F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
+                viewer.data().clear();
+                viewer.data().set_mesh(V_total, F_total);
+            }
+
+            if (ImGui::Button("Display Template", ImVec2(-1,0)))
+            {
+                viewer.data().clear();
+                viewer.data().set_mesh(V_temp, F_temp);
+            }
+
+            if (ImGui::Button("Display Scanned Mesh", ImVec2(-1,0)))
+            {
+                viewer.data().clear();
+                viewer.data().set_mesh(V, F);
+            }
+            // ---------------------------------------------------
         }
     };
 
