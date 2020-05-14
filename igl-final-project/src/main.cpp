@@ -20,7 +20,7 @@ using namespace Eigen;
 using Viewer = igl::opengl::glfw::Viewer;
 
 Viewer viewer;
-
+const char* mesh_filename;
 //vertex array, #V x3
 Eigen::MatrixXd V(0,3), V_cp(0, 3);
 //face array, #F x3
@@ -119,6 +119,14 @@ VectorXi read_landmarks(const char *filename)
     landmarks.conservativeResize(cnt);
 
     return landmarks;
+}
+
+void write_landmarks(const char* filename) {
+    ofstream fout(filename);
+    for (int i = 0; i < handle_vertices.rows(); i++) {
+        fout << handle_vertices[i] << " " << handle_id[handle_vertices[i]] << endl;
+    }
+    fout.close();
 }
 
 // compute average distance to mean landmark
@@ -371,10 +379,12 @@ int main(int argc, char *argv[])
     if(argc != 2) {
         cout << "Usage igl project mesh.off>" << endl;
         load_mesh("../data/scanned_faces_cleaned/alain_normal.obj");
+        mesh_filename = "../data/scanned_faces_cleaned/alain_normal.obj";
     }
     else
     {
         load_mesh(argv[1]);
+        mesh_filename = argv[1];
     }
 
     igl::opengl::glfw::imgui::ImGuiMenu menu;
@@ -426,10 +436,11 @@ int main(int argc, char *argv[])
                 mouse_mode = static_cast<MouseMode>(mouse_mode_type);
             }
 
-            if (ImGui::Button("Clear All Selection", ImVec2(-1,0)))
+            if (ImGui::Button("Clear Current Selection", ImVec2(-1,0)))
             {
                 selected_v.resize(0,1);
                 viewer.data().clear_points();
+                viewer.data().clear_labels();
             }
 
             if (ImGui::Button("Apply Selection", ImVec2(-1,0)))
@@ -437,10 +448,20 @@ int main(int argc, char *argv[])
                 applySelection();
             }
 
-            if (ImGui::Button("Clear Current Selection", ImVec2(-1,0)))
+            if (ImGui::Button("Clear Selected Landmarks", ImVec2(-1,0)))
             {
                 handle_id.setConstant(V.rows(),1,-1);
                 viewer.data().clear_points();
+                viewer.data().clear_labels();
+            }
+
+             if (ImGui::Button("Save Landmarks to file", ImVec2(-1,0)))
+            {   
+                char landmark_filename[200];
+                strcpy(landmark_filename, mesh_filename);
+                strcat(landmark_filename, "_landmarks");
+                printf("%s\n",landmark_filename);
+                write_landmarks(landmark_filename);
             }
 
             // -----------------------------------------------------
@@ -479,11 +500,10 @@ int main(int argc, char *argv[])
     viewer.callback_pre_draw = callback_pre_draw;
 
     viewer.data().point_size = 10;
+    viewer.data().show_labels = true;
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
     viewer.launch();
 }
-
-
 
 
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers)
@@ -559,14 +579,18 @@ void applySelection()
         const int selected_vertex = selected_v[i];
         if (handle_id[selected_vertex] == -1)
             handle_id[selected_vertex] = index;
-        //index++;
+            //index++;
     }
     currently_selected_but_not_applied_vertex = -1;
     onNewHandleID();
 
     viewer.data().set_points(handle_vertex_positions,Eigen::RowVector3d(0,1,0));
     selected_v.resize(0,1);
-
+    vector<string> labels = vector<string>(handle_vertex_positions.rows());
+    for (int i = 0; i < labels.size(); i++) {
+        labels[i] = std::to_string(i);
+    }
+    viewer.data().set_labels(handle_vertex_positions, labels);
 }
 
 bool compute_closest_vertex()
