@@ -180,6 +180,81 @@ void rigid_alignment()
     V *= bestRotation;
 
 }
+
+static inline void get_free(const Eigen::VectorXi ids, Eigen::VectorXi &fi) {
+  fi.resize(V.rows() - handle_vertices.rows());
+
+  int count = 0;
+  for (int i = 0; i < ids.rows(); i++) {
+    if (ids(i) == -1) {
+      fi(count) = i;
+      count++;
+    }
+  }
+}
+
+void ConvertConstraintsToMatrixForm(VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d)
+{
+	// Convert the list of fixed indices and their fixed positions to a linear system
+	// Hint: The matrix C should contain only one non-zero element per row and d should contain the positions in the correct order.
+	C = Eigen::SparseMatrix<double>(indices.rows() * 2, V.rows() * 2);
+	C.reserve(2 * indices.size());
+	C.setZero();
+	d = Eigen::VectorXd(indices.rows() * 2);
+	d.setZero();
+
+	for (int i = 0; i < indices.rows(); i++) {
+		// u
+		C.coeffRef(i, indices(i)) = 1;
+		d(i) = positions(i, 0);
+		// v
+		C.coeffRef(indices.rows() + i, V.rows() + indices(i)) = 1;
+		d(indices.rows() + i) = positions(i, 1);
+	}
+}
+
+void non_rigid_warping() {
+    MatrixXd x_prime, x, A, b, c, d;
+
+    // A = L
+    igl::cotmatrix(V, F, A);
+
+    // b = Lx
+    get_free(handle_id, x);
+
+
+    MatrixXd allconstraints;
+
+    ConvertConstraintsToMatrixForm()
+
+	SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
+
+	Eigen::SparseMatrix<double> zeros(C.rows(), 2 * V.rows());
+	zeros.setZero();
+
+	Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, left_side_combined;
+	Eigen::SparseMatrix<double, ColMajor> C_T = C.transpose();
+	
+	igl::cat(2, A, C_T, left_side_1);
+	igl::cat(2, C, zeros, left_side_2);
+	igl::cat(1, left_side_1, left_side_2, left_side_combined);
+	igl::cat(1, b, d, right_side);
+
+	left_side_combined.makeCompressed();
+	solver.compute(left_side_combined);
+
+	if (solver.info() != Eigen::Success) {
+		cout << "SparseLU Failed!" << endl;
+	} else {
+		cout << "SparseLU Succeeded!" << endl;
+	}
+
+	x = solver.solve(right_side);
+	UV.resize(V.rows(), 2);
+	for (int i = 0; i < V.rows(); i++) {
+		UV.row(i) << x(i), x(i + V.rows());
+	}
+}
 //-----------------------------------------------------------
 
 void get_new_handle_locations()
