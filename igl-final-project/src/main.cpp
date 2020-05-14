@@ -217,6 +217,7 @@ int main(int argc, char *argv[])
             {
                 selected_v.resize(0,1);
                 viewer.data().clear_points();
+                viewer.data().clear_labels();
             }
 
             if (ImGui::Button("Apply Selection", ImVec2(-1,0)))
@@ -228,6 +229,7 @@ int main(int argc, char *argv[])
             {
                 handle_id.setConstant(V.rows(),1,-1);
                 viewer.data().clear_points();
+                viewer.data().clear_labels();
             }
 
             // -----------------------------------------------------
@@ -265,6 +267,7 @@ int main(int argc, char *argv[])
     viewer.callback_mouse_up = callback_mouse_up;
 
     viewer.data().point_size = 10;
+    viewer.data().show_labels = true;
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
     viewer.launch();
 }
@@ -289,6 +292,11 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
             MatrixXd selected_v_pos;
             igl::slice(V, selected_v, 1, selected_v_pos);
             viewer.data().set_points(selected_v_pos,Eigen::RowVector3d(1,0,0));
+            vector<string> labels = vector<string>(selected_v_pos.rows());
+            for (int i = 0; i < labels.size(); i++) {
+                labels[i] = std::to_string(i);
+            }
+            viewer.data().set_labels(selected_v_pos, labels);
        }
     }
 
@@ -369,7 +377,11 @@ void applySelection()
 
     viewer.data().set_points(handle_vertex_positions,Eigen::RowVector3d(0,1,0));
     selected_v.resize(0,1);
-
+    vector<string> labels = vector<string>(handle_vertex_positions.rows());
+    for (int i = 0; i < labels.size(); i++) {
+        labels[i] = std::to_string(i);
+    }
+    viewer.data().set_labels(handle_vertex_positions, labels);
 }
 
 bool compute_closest_vertex()
