@@ -11,7 +11,7 @@
 #include <igl/cotmatrix.h>
 #include <igl/slice.h>
 #include <stdbool.h>
-
+#include <igl/cat.h>
 //activate this for alternate UI (easier to debug)
 #define UPDATE_ONLY_ON_UP
 
@@ -70,6 +70,7 @@ bool load_mesh(string filename);
 bool solve(Viewer& viewer);
 void get_new_handle_locations();
 bool compute_closest_vertex();
+void ConvertConstraintsToMatrixForm(VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d);
 Eigen::MatrixXd readMatrix(const char *filename);
 
 bool callback_mouse_down(Viewer& viewer, int button, int modifier);
@@ -181,67 +182,79 @@ void rigid_alignment()
 
 }
 
-static inline void get_free(const Eigen::VectorXi ids, Eigen::VectorXi &fi) {
-  fi.resize(V.rows() - handle_vertices.rows());
-
-  int count = 0;
-  for (int i = 0; i < ids.rows(); i++) {
-    if (ids(i) == -1) {
-      fi(count) = i;
-      count++;
-    }
-  }
-}
-
 void ConvertConstraintsToMatrixForm(VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d)
 {
 	// Convert the list of fixed indices and their fixed positions to a linear system
 	// Hint: The matrix C should contain only one non-zero element per row and d should contain the positions in the correct order.
-	C = Eigen::SparseMatrix<double>(indices.rows() * 2, V.rows() * 2);
-	C.reserve(2 * indices.size());
+	C = Eigen::SparseMatrix<double>(indices.rows() * 3, V.rows() * 3);
+	C.reserve(3 * indices.size());
 	C.setZero();
-	d = Eigen::VectorXd(indices.rows() * 2);
+	d = Eigen::VectorXd(indices.rows() * 3);
 	d.setZero();
 
 	for (int i = 0; i < indices.rows(); i++) {
-		// u
+		// x
 		C.coeffRef(i, indices(i)) = 1;
 		d(i) = positions(i, 0);
-		// v
+		// y
 		C.coeffRef(indices.rows() + i, V.rows() + indices(i)) = 1;
 		d(indices.rows() + i) = positions(i, 1);
+        // x
+		C.coeffRef(i, indices(i)) = 1;
+		d(i) = positions(i, 0);
+		// z
+		C.coeffRef(indices.rows() * 2 + i, V.rows() * 2 + indices(i)) = 1;
+		d(indices.rows() * 2 + i) = positions(i, 2);
 	}
 }
 
 void non_rigid_warping() {
-    MatrixXd x_prime, x, A, b, c, d;
+    VectorXi f;
+    SparseMatrix<double> L, A, A1, A2, A3, c, zeros;
+    VectorXd x_prime, b(V.rows() * 3), d;
 
-    // A = L
-    igl::cotmatrix(V, F, A);
+    igl::cotmatrix(V, F, L);
 
     // b = Lx
-    get_free(handle_id, x);
+    b << L * V.col(0), L * V.col(1), L * V.col(2);
+
+    // TODO find a better way to do this? 
+    zeros = SparseMatrix<double>(L.rows(), L.cols());
+    zeros.setZero();
+    
+    igl::cat(2, L, zeros, A1);
+    igl::cat(2, A1, zeros, A1);
+    igl::cat(2, zeros, L, A2);
+    igl::cat(2, A2, zeros, A2);
+    igl::cat(2, zeros, zeros, A3);
+    igl::cat(2, zeros, L, A3);
+    igl::cat(1, A1, A2, A);
+    igl::cat(1, A, A3, A);
 
 
-    MatrixXd allconstraints;
+    // TODO: add boundary points to constraint ************************
+    VectorXi all_constraints = handle_vertices;
+    MatrixXd all_constraint_positions = handle_vertex_positions;
 
-    ConvertConstraintsToMatrixForm()
+    ConvertConstraintsToMatrixForm(all_constraints, all_constraint_positions, c, d);
 
 	SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
 
-	Eigen::SparseMatrix<double> zeros(C.rows(), 2 * V.rows());
-	zeros.setZero();
+	Eigen::SparseMatrix<double, ColMajor> C_T = c.transpose();
 
-	Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, left_side_combined;
-	Eigen::SparseMatrix<double, ColMajor> C_T = C.transpose();
-	
+	Eigen::SparseMatrix<double> zeros_c(c.rows(), C_T.cols());
+	zeros_c.setZero();
+
+	Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, LHS;
+	VectorXd RHS; 
+
 	igl::cat(2, A, C_T, left_side_1);
-	igl::cat(2, C, zeros, left_side_2);
-	igl::cat(1, left_side_1, left_side_2, left_side_combined);
-	igl::cat(1, b, d, right_side);
+	igl::cat(2, c, zeros_c, left_side_2);
+	igl::cat(1, left_side_1, left_side_2, LHS);
+	igl::cat(1, b, d, RHS);
 
-	left_side_combined.makeCompressed();
-	solver.compute(left_side_combined);
+	LHS.makeCompressed();
+	solver.compute(LHS);
 
 	if (solver.info() != Eigen::Success) {
 		cout << "SparseLU Failed!" << endl;
@@ -249,11 +262,9 @@ void non_rigid_warping() {
 		cout << "SparseLU Succeeded!" << endl;
 	}
 
-	x = solver.solve(right_side);
-	UV.resize(V.rows(), 2);
-	for (int i = 0; i < V.rows(); i++) {
-		UV.row(i) << x(i), x(i + V.rows());
-	}
+	x_prime = solver.solve(RHS);
+
+    // TODO: Add x_prime to ?
 }
 //-----------------------------------------------------------
 
@@ -298,6 +309,7 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
 
     down_mouse_x = viewer.current_mouse_x;
     down_mouse_y = viewer.current_mouse_y;
+
     if (mouse_mode_smooth == SELECT)
     {
         if (lasso->strokeAdd(viewer.current_mouse_x, viewer.current_mouse_y) >=0)
@@ -305,7 +317,7 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
         else
             lasso->strokeReset();
     }
-    else if(mouse_mode == SELECT)
+    else if (mouse_mode == SELECT)
     {
         if (compute_closest_vertex()) {
             // paint hit red
@@ -316,16 +328,12 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
             MatrixXd selected_v_pos;
             igl::slice(V, selected_v, 1, selected_v_pos);
             viewer.data().set_points(selected_v_pos,Eigen::RowVector3d(1,0,0));
-            vector<string> labels = vector<string>(selected_v_pos.rows());
-            for (int i = 0; i < labels.size(); i++) {
-                labels[i] = std::to_string(i);
-            }
-            viewer.data().set_labels(selected_v_pos, labels);
         }
     }
 
     return doit;
 }
+
 
 
 bool callback_mouse_move(Viewer& viewer, int mouse_x, int mouse_y)
@@ -584,7 +592,6 @@ int main(int argc, char *argv[])
 }
 
 
-
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers)
 {
     bool handled = false;
@@ -656,10 +663,9 @@ void applySelection()
     for (int i =0; i<selected_v.rows(); ++i)
     {
         const int selected_vertex = selected_v[i];
-        if (handle_id[selected_vertex] == -1) {
+        if (handle_id[selected_vertex] == -1)
             handle_id[selected_vertex] = index;
-        //index++;
-        }
+            //index++;
     }
     currently_selected_but_not_applied_vertex = -1;
     onNewHandleID();
