@@ -223,7 +223,6 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
 
     down_mouse_x = viewer.current_mouse_x;
     down_mouse_y = viewer.current_mouse_y;
-
     if (mouse_mode_smooth == SELECT)
     {
         if (lasso->strokeAdd(viewer.current_mouse_x, viewer.current_mouse_y) >=0)
@@ -231,7 +230,7 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
         else
             lasso->strokeReset();
     }
-    else if (mouse_mode == SELECT)
+    else if(mouse_mode == SELECT)
     {
         if (compute_closest_vertex()) {
             // paint hit red
@@ -242,12 +241,16 @@ bool callback_mouse_down(Viewer& viewer, int button, int modifier)
             MatrixXd selected_v_pos;
             igl::slice(V, selected_v, 1, selected_v_pos);
             viewer.data().set_points(selected_v_pos,Eigen::RowVector3d(1,0,0));
+            vector<string> labels = vector<string>(selected_v_pos.rows());
+            for (int i = 0; i < labels.size(); i++) {
+                labels[i] = std::to_string(i);
+            }
+            viewer.data().set_labels(selected_v_pos, labels);
         }
     }
 
     return doit;
 }
-
 
 
 bool callback_mouse_move(Viewer& viewer, int mouse_x, int mouse_y)
@@ -506,6 +509,7 @@ int main(int argc, char *argv[])
 }
 
 
+
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers)
 {
     bool handled = false;
@@ -577,9 +581,10 @@ void applySelection()
     for (int i =0; i<selected_v.rows(); ++i)
     {
         const int selected_vertex = selected_v[i];
-        if (handle_id[selected_vertex] == -1)
+        if (handle_id[selected_vertex] == -1) {
             handle_id[selected_vertex] = index;
-            //index++;
+        //index++;
+        }
     }
     currently_selected_but_not_applied_vertex = -1;
     onNewHandleID();
