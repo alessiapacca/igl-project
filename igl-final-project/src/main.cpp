@@ -8,6 +8,11 @@
 #include <igl/unproject_onto_mesh.h>
 #include "Lasso.h"
 
+#include <igl/cat.h>
+#include <igl/cotmatrix.h>
+#include <igl/repdiag.h>
+#include <igl/boundary_loop.h>
+
 //activate this for alternate UI (easier to debug)
 //#define UPDATE_ONLY_ON_UP
 
@@ -73,6 +78,9 @@ void applySelection();
 // template vertices and faces
 Eigen::MatrixXd V_temp(0,3);
 Eigen::MatrixXi F_temp(0,3);
+// landmark vertex indices and positions
+VectorXi landmarks, landmarks_temp;
+MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -115,14 +123,14 @@ void rigid_alignment()
 {
     //load scanned mesh
     load_mesh("../data/landmarks_example/person0_.obj");
-    VectorXi landmarks = read_landmarks("../data/landmarks_example/person0__23landmarks");
-    MatrixXd landmark_positions(0, 3);
+    landmarks = read_landmarks("../data/landmarks_example/person0__23landmarks");
+    landmark_positions(0, 3);
     igl::slice(V, landmarks, 1, landmark_positions);
 
     // load template
     igl::read_triangle_mesh("../data/landmarks_example/headtemplate.obj",V_temp,F_temp);
-    VectorXi landmarks_temp = read_landmarks("../data/landmarks_example/headtemplate_23landmarks");
-    MatrixXd landmark_positions_temp(0, 3);
+    landmarks_temp = read_landmarks("../data/landmarks_example/headtemplate_23landmarks");
+    landmark_positions_temp(0, 3);
     igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
 
     // center template at (0,0,0)
@@ -155,6 +163,87 @@ void rigid_alignment()
 
 }
 //-----------------------------------------------------------
+
+void ConvertConstraintsToMatrixForm(VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d)
+{
+	// Convert the list of fixed indices and their fixed positions to a linear system
+	// Hint: The matrix C should contain only one non-zero element per row and d should contain the positions in the correct order.
+	C = Eigen::SparseMatrix<double>(indices.rows() * 3, V_temp.rows() * 3);
+	C.setZero();
+	d = Eigen::VectorXd(indices.rows() * 3);
+	d.setZero();
+
+	for (int i = 0; i < indices.rows(); i++) {
+		// x
+		C.insert(i, indices(i)) = 1;
+		d(i) = positions(i, 0);
+		// y
+		C.insert(indices.rows() + i, V_temp.rows() + indices(i)) = 1;
+		d(indices.rows() + i) = positions(i, 1);
+		// z
+		C.insert(indices.rows() * 2 + i, V_temp.rows() * 2 + indices(i)) = 1;
+		d(indices.rows() * 2 + i) = positions(i, 2);
+	}
+}
+
+void non_rigid_warping() {
+    VectorXi f;
+    SparseMatrix<double> L, A, A1, A2, A3, c;
+    VectorXd x_prime, b(V_temp.rows() * 3), d;
+
+    igl::cotmatrix(V_temp, F_temp, L);
+
+    // b = Lx
+    b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
+
+    // TODO find a better way to do this? 
+    igl::repdiag(L, 3, A);
+
+    // TODO: add boundary points to constraint ************************
+    VectorXi boundary_vertex_indices;
+    MatrixXd boundary_vertex_positions;
+    igl::boundary_loop(F_temp, boundary_vertex_indices);
+    igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
+
+    VectorXi all_constraints;
+    MatrixXd all_constraint_positions;
+    igl::cat(1, boundary_vertex_indices, landmarks_temp, all_constraints);
+    igl::cat(1, boundary_vertex_positions, landmark_positions_temp, all_constraint_positions);
+
+    ConvertConstraintsToMatrixForm(all_constraints, all_constraint_positions, c, d);
+
+	SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
+
+	Eigen::SparseMatrix<double, ColMajor> C_T = c.transpose();
+
+	Eigen::SparseMatrix<double> zeros_c(c.rows(), C_T.cols());
+	zeros_c.setZero();
+
+	Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, LHS;
+	VectorXd RHS; 
+
+	igl::cat(2, A, C_T, left_side_1);
+	igl::cat(2, c, zeros_c, left_side_2);
+	igl::cat(1, left_side_1, left_side_2, LHS);
+	igl::cat(1, b, d, RHS);
+
+	LHS.makeCompressed();
+	solver.compute(LHS);
+
+	if (solver.info() != Eigen::Success) {
+		cout << "SparseLU Failed!" << endl;
+	} else {
+		cout << "SparseLU Succeeded!" << endl;
+	}
+
+	x_prime = solver.solve(RHS);
+
+    // TODO: Add x_prime to ?
+    V_temp.col(0) = x_prime.topRows(V_temp.rows());
+    V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
+    V_temp.col(2) = x_prime.bottomRows(V_temp.rows());
+
+}
 
 bool solve(Viewer& viewer)
 {
@@ -277,6 +366,21 @@ int main(int argc, char *argv[])
                 viewer.data().set_mesh(V, F);
             }
             // ---------------------------------------------------
+
+            if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
+            {
+                non_rigid_warping();
+            }
+
+            if (ImGui::Button("Display Non-Rigid Result", ImVec2(-1,0)))
+            {
+                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
+                MatrixXi F_total(F.rows() + F_temp.rows(), 3);
+                V_total << V, V_temp;
+                F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
+                viewer.data().clear();
+                viewer.data().set_mesh(V_total, F_total);
+            }
         }
     };
 
