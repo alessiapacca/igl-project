@@ -11,7 +11,7 @@ option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"    ON)
 
 
 find_package(LIBIGL REQUIRED QUIET)
-find_package(libigl)
+# find_package(libigl)
 find_package(Eigen3)
 
 

@@ -81,6 +81,7 @@ Eigen::MatrixXi F_temp(0,3);
 // landmark vertex indices and positions
 VectorXi landmarks, landmarks_temp;
 MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
+static int n_iter = 0;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -195,6 +196,7 @@ void non_rigid_warping() {
 
     // b = Lx
     b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
+    // b.setZero(V_temp.rows() * 3);
 
     // DONE: find a better way to do this? 
     igl::repdiag(L, 3, A);
@@ -207,6 +209,7 @@ void non_rigid_warping() {
 
     VectorXi all_constraints;
     MatrixXd all_constraint_positions;
+    igl::slice(V, landmarks, 1, landmark_positions);
     igl::cat(1, boundary_vertex_indices, landmarks_temp, all_constraints);
     igl::cat(1, boundary_vertex_positions, landmark_positions, all_constraint_positions);
 
@@ -241,8 +244,11 @@ void non_rigid_warping() {
     // DONE: Add x_prime to ?
     V_temp.col(0) = x_prime.topRows(V_temp.rows());
     V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
-    V_temp.col(2) = x_prime.bottomRows(V_temp.rows());
+    V_temp.col(2) = x_prime.middleRows(2*V_temp.rows(), V_temp.rows());
 
+    n_iter++;
+    cout << "#iter " << n_iter << endl;
+    
 }
 
 bool solve(Viewer& viewer)
