@@ -196,10 +196,10 @@ void non_rigid_warping() {
     // b = Lx
     b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
 
-    // TODO find a better way to do this? 
+    // DONE: find a better way to do this? 
     igl::repdiag(L, 3, A);
 
-    // TODO: add boundary points to constraint ************************
+    // DONE: add boundary points to constraint ************************
     VectorXi boundary_vertex_indices;
     MatrixXd boundary_vertex_positions;
     igl::boundary_loop(F_temp, boundary_vertex_indices);
@@ -208,7 +208,7 @@ void non_rigid_warping() {
     VectorXi all_constraints;
     MatrixXd all_constraint_positions;
     igl::cat(1, boundary_vertex_indices, landmarks_temp, all_constraints);
-    igl::cat(1, boundary_vertex_positions, landmark_positions_temp, all_constraint_positions);
+    igl::cat(1, boundary_vertex_positions, landmark_positions, all_constraint_positions);
 
     ConvertConstraintsToMatrixForm(all_constraints, all_constraint_positions, c, d);
 
@@ -238,7 +238,7 @@ void non_rigid_warping() {
 
 	x_prime = solver.solve(RHS);
 
-    // TODO: Add x_prime to ?
+    // DONE: Add x_prime to ?
     V_temp.col(0) = x_prime.topRows(V_temp.rows());
     V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
     V_temp.col(2) = x_prime.bottomRows(V_temp.rows());
