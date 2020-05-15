@@ -81,6 +81,7 @@ void non_rigid_warping(MatrixXi F, VectorXi landmark_vertices, MatrixXd landmark
 
 	x_prime = solver.solve(RHS);
 
+    cout << x_prime << endl;
     V.col(0) = x_prime.topRows(V.rows());
     V.col(1) = x_prime.middleRows(V.rows(), V.rows());
     V.col(2) = x_prime.bottomRows(V.rows());

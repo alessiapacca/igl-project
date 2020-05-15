@@ -154,7 +154,7 @@ void rigid_alignment()
     Matrix3d svd_U = svd.matrixU();
     Matrix3d svd_V = svd.matrixV();
     Matrix3d I = Matrix3d::Identity();
-    // if((svd_U * svd_V.transpose()).determinant() < 0) I(2, 2) = -1; // check for reflection case
+    if((svd_U * svd_V.transpose()).determinant() < 0) I(2, 2) = -1; // check for reflection case
     Matrix3d bestRotation = svd_U * I * svd_V.transpose();
     V *= bestRotation;
 
