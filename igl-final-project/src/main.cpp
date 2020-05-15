@@ -81,7 +81,6 @@ Eigen::MatrixXi F_temp(0,3);
 // landmark vertex indices and positions
 VectorXi landmarks, landmarks_temp;
 MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
-static int n_iter = 0;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -158,6 +157,9 @@ void rigid_alignment()
     if((svd_U * svd_V.transpose()).determinant() < 0) I(2, 2) = -1; // check for reflection case
     Matrix3d bestRotation = svd_U * I * svd_V.transpose();
     V *= bestRotation;
+
+    // update landmark positions
+    igl::slice(V, landmarks, 1, landmark_positions);
 
 }
 
@@ -285,7 +287,7 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
             {
-                non_rigid_warping(F_temp, landmarks_temp, landmark_positions_temp, V_temp);
+                non_rigid_warping(V_temp, F_temp, landmarks_temp, landmark_positions);
             }
 
             if (ImGui::Button("Display Non-Rigid Result", ImVec2(-1,0)))

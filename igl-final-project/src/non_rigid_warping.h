@@ -26,63 +26,65 @@ void ConvertConstraintsToMatrixForm(MatrixXd V, VectorXi indices, MatrixXd posit
 	}
 }
 
-void non_rigid_warping(MatrixXi F, VectorXi landmark_vertices, MatrixXd landmark_vertex_positions, MatrixXd &V) {
+void non_rigid_warping(MatrixXd& V_temp,
+					   const MatrixXi& F_temp, 
+					   const VectorXi& landmarks_temp,
+					   const MatrixXd& landmark_positions) {
+    VectorXi f;
     SparseMatrix<double> L, A, A1, A2, A3, c;
-    VectorXd x_prime, b(V.rows() * 3), d;
+    VectorXd x_prime, b(V_temp.rows() * 3), d;
 
-    igl::cotmatrix(V, F, L);
+    igl::cotmatrix(V_temp, F_temp, L);
 
     // b = Lx
-    b << L * V.col(0), L * V.col(1), L * V.col(2);
-    cout << "B is " << b.rows() << " " << b.cols() << endl;
+    b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
+    // b.setZero(V_temp.rows() * 3);
 
+    // DONE: find a better way to do this? 
     igl::repdiag(L, 3, A);
-    cout << "A is " << A.rows() << " " << A.cols() << endl;
 
+    // DONE: add boundary points to constraint ************************
     VectorXi boundary_vertex_indices;
     MatrixXd boundary_vertex_positions;
-    igl::boundary_loop(F, boundary_vertex_indices);
-    igl::slice(V, boundary_vertex_indices, 1, boundary_vertex_positions);
+    igl::boundary_loop(F_temp, boundary_vertex_indices);
+    igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
 
     VectorXi all_constraints;
     MatrixXd all_constraint_positions;
-    igl::cat(1, boundary_vertex_indices, landmark_vertices, all_constraints);
-    igl::cat(1, boundary_vertex_positions, landmark_vertex_positions, all_constraint_positions);
+    igl::cat(1, boundary_vertex_indices, landmarks_temp, all_constraints);
+    igl::cat(1, boundary_vertex_positions, landmark_positions, all_constraint_positions);
 
-    ConvertConstraintsToMatrixForm(V, all_constraints, all_constraint_positions, c, d);
+    ConvertConstraintsToMatrixForm(V_temp, all_constraints, all_constraint_positions, c, d);
 
-    cout << "C is " << c.rows() << " " << c.cols() << endl;
-    cout << "D is " << d.rows() << " " << d.cols() << endl;
+    SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
 
+    Eigen::SparseMatrix<double, ColMajor> C_T = c.transpose();
 
-	SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
+    Eigen::SparseMatrix<double> zeros_c(c.rows(), C_T.cols());
+    zeros_c.setZero();
 
-	Eigen::SparseMatrix<double, ColMajor> C_T = c.transpose();
+    Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, LHS;
+    VectorXd RHS; 
 
-	Eigen::SparseMatrix<double> zeros_c(c.rows(), C_T.cols());
-	zeros_c.setZero();
+    igl::cat(2, A, C_T, left_side_1);
+    igl::cat(2, c, zeros_c, left_side_2);
+    igl::cat(1, left_side_1, left_side_2, LHS);
+    igl::cat(1, b, d, RHS);
 
-	Eigen::SparseMatrix<double, ColMajor> left_side_1, left_side_2, LHS;
-	VectorXd RHS; 
+    LHS.makeCompressed();
+    solver.compute(LHS);
 
-	igl::cat(2, A, C_T, left_side_1);
-	igl::cat(2, c, zeros_c, left_side_2);
-	igl::cat(1, left_side_1, left_side_2, LHS);
-	igl::cat(1, b, d, RHS);
+    if (solver.info() != Eigen::Success) {
+        cout << "SparseLU Failed!" << endl;
+    } else {
+        cout << "SparseLU Succeeded!" << endl;
+    }
 
-	LHS.makeCompressed();
-	solver.compute(LHS);
+    x_prime = solver.solve(RHS);
 
-	if (solver.info() != Eigen::Success) {
-		cout << "SparseLU Failed!" << endl;
-	} else {
-		cout << "SparseLU Succeeded!" << endl;
-	}
-
-	x_prime = solver.solve(RHS);
-
-    cout << x_prime << endl;
-    V.col(0) = x_prime.topRows(V.rows());
-    V.col(1) = x_prime.middleRows(V.rows(), V.rows());
-    V.col(2) = x_prime.bottomRows(V.rows());
+    // DONE: Add x_prime to ?
+    V_temp.col(0) = x_prime.topRows(V_temp.rows());
+    V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
+    V_temp.col(2) = x_prime.middleRows(2*V_temp.rows(), V_temp.rows());
+    
 }
