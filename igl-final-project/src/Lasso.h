@@ -1,5 +1,5 @@
-#ifndef __ex5__Lasso__
-#define __ex5__Lasso__
+#ifndef __Lasso__
+#define __Lasso__
 
 #include <igl/opengl/glfw/Viewer.h>
 
