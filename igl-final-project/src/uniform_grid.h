@@ -52,13 +52,13 @@ public:
                             && z0 + z >= 0 && z0 + z < resolution - 1) {
                         vector<int> closest_points = grid_bins[x0 + x][y0 + y][z0 + z];
                         if (closest_points.size() == 0) {
-                        continue;
+                            continue;
                         }
                         for (int i = 0; i < closest_points.size(); i++) {
-                        double dist = (P - V.row(closest_points[i])).norm();
-                        if (dist < min_dist) {
-                            min_dist = dist;
-                        }
+                            double dist = (P - V.row(closest_points[i])).norm();
+                            if (dist < min_dist) {
+                                min_dist = dist;
+                            }
                         }
                     }
                 }
