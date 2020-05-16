@@ -33,12 +33,16 @@ void ConvertConstraintsToMatrixForm(MatrixXd V,
 	}
 }
 
+
+// 16/05: still some artifacts, especially around nostrils and eyebrows
 void non_rigid_warping(MatrixXd& V_temp,
 					   const MatrixXi& F_temp, 
+                       const VectorXi& landmarks,
 					   const VectorXi& landmarks_temp,
 					   const MatrixXd& landmark_positions,
                        const MatrixXd& V,
-                       UniformGrid& ug) {
+                       UniformGrid& ug,
+                       const double threshold) {
     VectorXi f;
     SparseMatrix<double> L, A, c;
     VectorXd x_prime, b(V_temp.rows() * 3), d;
@@ -48,27 +52,39 @@ void non_rigid_warping(MatrixXd& V_temp,
     // b = Lx
     b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
 
-    // DONE: find a better way to do this? 
     igl::repdiag(L, 3, A);
 
-    // DONE: add boundary points to constraint ************************
+    // 3 types of constraints
+    // (1) landmarks
+    // (2) boundary points
+    // (3) points that are close enough to target face
+
+    // ***** can be moved out of this funciton to avoid redundant computation *****
+    // get boundary points constraint
     VectorXi boundary_vertex_indices;
     MatrixXd boundary_vertex_positions;
     igl::boundary_loop(F_temp, boundary_vertex_indices);
     igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
 
+    // store indices for landmarks and boundary points (indices in V_temp)
+    // skip these points when adding closest point constraints
     unordered_set<int> existing_constraints;
     for (int i=0; i<landmarks_temp.rows(); i++) 
         existing_constraints.insert(landmarks_temp(i));
     for (int i=0; i<boundary_vertex_indices.rows(); i++) 
         existing_constraints.insert(boundary_vertex_indices(i));
+    // *******************************************************************************
+
+    // store indices for landmarks and boundary points (indices in V)
+    // don't attach other points to these points
+    unordered_set<int> clst_constraints;
+    for (int i=0; i<landmarks.rows(); i++) 
+        clst_constraints.insert(landmarks(i));
 
     VectorXi closest_vertex_indices(V_temp.rows());
     MatrixXd closest_vertex_positions(V_temp.rows(), 3);
 
     // TODO: find appropiate threshold
-    unordered_set<int> clst_constraints;
-    double threshold = 2;
     int idx;
     int cnt = 0;
     for (int i = 0; i < V_temp.rows(); i++) {
@@ -78,7 +94,6 @@ void non_rigid_warping(MatrixXd& V_temp,
         double dist = ug.query(V_temp.row(i), V, idx, threshold);
 
         if (dist < threshold && dist != -1) {
-            // ADD V_temp.row(i) to constraint;
             if (clst_constraints.find(idx) != clst_constraints.end()) continue;
             closest_vertex_indices(cnt) = i;
             closest_vertex_positions.row(cnt) = V.row(idx);
@@ -90,7 +105,7 @@ void non_rigid_warping(MatrixXd& V_temp,
     closest_vertex_indices.conservativeResize(cnt);
     closest_vertex_positions.conservativeResize(cnt, 3);
 
-    cout << "closest constraint size " << closest_vertex_indices.rows() << endl;
+    cout << "#closest point constraint " << closest_vertex_indices.rows() << endl;
 
     VectorXi all_constraints, all_constraints_;
     MatrixXd all_constraint_positions, all_constraint_positions_;
@@ -100,7 +115,6 @@ void non_rigid_warping(MatrixXd& V_temp,
     igl::cat(1, all_constraint_positions_, landmark_positions, all_constraint_positions);
 
     ConvertConstraintsToMatrixForm(V_temp, all_constraints, all_constraint_positions, c, d);
-    cout << "set constraints done\n";
 
     SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
 
@@ -128,7 +142,6 @@ void non_rigid_warping(MatrixXd& V_temp,
 
     x_prime = solver.solve(RHS);
 
-    // DONE: Add x_prime to ?
     V_temp.col(0) = x_prime.topRows(V_temp.rows());
     V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
     V_temp.col(2) = x_prime.middleRows(2*V_temp.rows(), V_temp.rows());

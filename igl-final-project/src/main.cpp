@@ -71,17 +71,16 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers);
 void onNewHandleID();
 void applySelection();
 
-//--------------------------------------------------------
-// 12/05/2020 by Yingyan
-// rigid alignment draft version
-// currently use only the given landmark example
-
 // template vertices and faces
 Eigen::MatrixXd V_temp(0,3);
 Eigen::MatrixXi F_temp(0,3);
 // landmark vertex indices and positions
 VectorXi landmarks, landmarks_temp;
 MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
+// threshold for closest point distance
+double threshold = 1;
+// resolution for uniform grid
+int xres = 30, yres = 50, zres = 50;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -162,17 +161,6 @@ void rigid_alignment()
 
     // update landmark positions
     igl::slice(V, landmarks, 1, landmark_positions);
-
-    // cout << "find threshold\n";
-    // cout << "landmark_positions \n" << landmark_positions << endl;
-    // cout << "landmark_positions_temp \n" << landmark_positions_temp << endl;
-    // VectorXd diff = (landmark_positions - landmark_positions_temp).rowwise().norm();
-    // cout << diff << endl;
-
-}
-
-void create_grid(UniformGrid& ug)
-{
 
 }
 
@@ -271,9 +259,6 @@ int main(int argc, char *argv[])
                 write_landmarks(landmark_filename);
             }
 
-            // -----------------------------------------------------
-            // 12/05/2020 by Yingyan
-            // test rigid alignment
             if (ImGui::Button("Rigid Alignment", ImVec2(-1,0)))
             {
                 rigid_alignment();
@@ -281,6 +266,26 @@ int main(int argc, char *argv[])
                 MatrixXi F_total(F.rows() + F_temp.rows(), 3);
                 V_total << V, V_temp;
                 F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
+                viewer.data().clear();
+                viewer.data().set_mesh(V_total, F_total);
+            }
+
+            if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
+            {
+                // aligned results (V_total, F_total)
+                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
+                MatrixXi F_total(F.rows() + F_temp.rows(), 3);
+                V_total << V, V_temp;
+                F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
+
+                // prepare uniform grid
+                RowVector3d bb_min = V_total.colwise().minCoeff();
+                RowVector3d bb_max = V_total.colwise().maxCoeff();
+                UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
+                ug.init_grid(V);
+
+                non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+
                 viewer.data().clear();
                 viewer.data().set_mesh(V_total, F_total);
             }
@@ -296,31 +301,12 @@ int main(int argc, char *argv[])
                 viewer.data().clear();
                 viewer.data().set_mesh(V, F);
             }
-            // ---------------------------------------------------
 
-            if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
-            {
-                // prepare uniform grid
-                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
-                V_total << V, V_temp;
-                RowVector3d bb_min = V_total.colwise().minCoeff();
-                RowVector3d bb_max = V_total.colwise().maxCoeff();
-                UniformGrid ug(bb_min, bb_max, 20, 20, 20);
-                ug.init_grid(V);
-                cout << "init grid done\n";
+            ImGui::InputDouble("threshold", &threshold, 0, 0);
 
-                non_rigid_warping(V_temp, F_temp, landmarks_temp, landmark_positions, V, ug);
-            }
-
-            if (ImGui::Button("Display Non-Rigid Result", ImVec2(-1,0)))
-            {
-                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
-                MatrixXi F_total(F.rows() + F_temp.rows(), 3);
-                V_total << V, V_temp;
-                F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
-                viewer.data().clear();
-                viewer.data().set_mesh(V_total, F_total);
-            }
+            ImGui::InputInt("Resolution x", &xres, 0, 0);
+            ImGui::InputInt("Resolution y", &yres, 0, 0);
+            ImGui::InputInt("Resolution z", &zres, 0, 0);
         }
     };
 
