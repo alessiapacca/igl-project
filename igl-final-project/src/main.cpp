@@ -13,6 +13,7 @@
 #include <igl/repdiag.h>
 #include <igl/boundary_loop.h>
 #include "uniform_grid.h"
+
 //activate this for alternate UI (easier to debug)
 //#define UPDATE_ONLY_ON_UP
 
@@ -55,7 +56,6 @@ Eigen::Vector4f rotation(0,0,0,1.);
 typedef Eigen::Triplet<double> T;
 //per vertex color array, #V x3
 Eigen::MatrixXd vertex_colors;
-UniformGrid ug;
 
 //function declarations (see below for implementation)
 bool load_mesh(string filename);
@@ -160,12 +160,19 @@ void rigid_alignment()
     Matrix3d bestRotation = svd_U * I * svd_V.transpose();
     V *= bestRotation;
 
-    Vector3d bb_min = V.colwise().minCoeff().transpose();
-    Vector3d bb_max = V.colwise().maxCoeff().transpose();
-    ug = UniformGrid(bb_min, bb_max);
-    ug.init_grid(V);
     // update landmark positions
     igl::slice(V, landmarks, 1, landmark_positions);
+
+    // cout << "find threshold\n";
+    // cout << "landmark_positions \n" << landmark_positions << endl;
+    // cout << "landmark_positions_temp \n" << landmark_positions_temp << endl;
+    // VectorXd diff = (landmark_positions - landmark_positions_temp).rowwise().norm();
+    // cout << diff << endl;
+
+}
+
+void create_grid(UniformGrid& ug)
+{
 
 }
 
@@ -293,6 +300,15 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
             {
+                // prepare uniform grid
+                MatrixXd V_total(V.rows() + V_temp.rows(), 3);
+                V_total << V, V_temp;
+                RowVector3d bb_min = V_total.colwise().minCoeff();
+                RowVector3d bb_max = V_total.colwise().maxCoeff();
+                UniformGrid ug(bb_min, bb_max, 20, 20, 20);
+                ug.init_grid(V);
+                cout << "init grid done\n";
+
                 non_rigid_warping(V_temp, F_temp, landmarks_temp, landmark_positions, V, ug);
             }
 

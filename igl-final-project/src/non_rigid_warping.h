@@ -4,6 +4,8 @@
 #include <igl/boundary_loop.h>
 #include "uniform_grid.h"
 
+#include <unordered_set>
+
 using namespace std;
 using namespace Eigen;
 
@@ -38,41 +40,67 @@ void non_rigid_warping(MatrixXd& V_temp,
                        const MatrixXd& V,
                        UniformGrid& ug) {
     VectorXi f;
-    SparseMatrix<double> L, A, A1, A2, A3, c;
+    SparseMatrix<double> L, A, c;
     VectorXd x_prime, b(V_temp.rows() * 3), d;
 
     igl::cotmatrix(V_temp, F_temp, L);
 
     // b = Lx
     b << L * V_temp.col(0), L * V_temp.col(1), L * V_temp.col(2);
-    // b.setZero(V_temp.rows() * 3);
 
     // DONE: find a better way to do this? 
     igl::repdiag(L, 3, A);
 
     // DONE: add boundary points to constraint ************************
-  
     VectorXi boundary_vertex_indices;
     MatrixXd boundary_vertex_positions;
     igl::boundary_loop(F_temp, boundary_vertex_indices);
     igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
 
-    // TODO: find appropriate threshold
-    double threshold = 0.5;
+    unordered_set<int> existing_constraints;
+    for (int i=0; i<landmarks_temp.rows(); i++) 
+        existing_constraints.insert(landmarks_temp(i));
+    for (int i=0; i<boundary_vertex_indices.rows(); i++) 
+        existing_constraints.insert(boundary_vertex_indices(i));
+
+    VectorXi closest_vertex_indices(V_temp.rows());
+    MatrixXd closest_vertex_positions(V_temp.rows(), 3);
+
+    // TODO: find appropiate threshold
+    unordered_set<int> clst_constraints;
+    double threshold = .5;
+    int idx;
+    int cnt = 0;
     for (int i = 0; i < V_temp.rows(); i++) {
-        double dist = ug.query(V_temp.row(i), V);
+
+        if (existing_constraints.find(i) != existing_constraints.end()) continue;
+
+        double dist = ug.query(V_temp.row(i), V, idx, threshold);
 
         if (dist < threshold && dist != -1) {
             // ADD V_temp.row(i) to constraint;
+            if (clst_constraints.find(idx) != clst_constraints.end()) continue;
+            closest_vertex_indices(cnt) = i;
+            closest_vertex_positions.row(cnt) = V.row(idx);
+            clst_constraints.insert(idx);
+            cnt++;
         }
     }
 
-    VectorXi all_constraints;
-    MatrixXd all_constraint_positions;
-    igl::cat(1, boundary_vertex_indices, landmarks_temp, all_constraints);
-    igl::cat(1, boundary_vertex_positions, landmark_positions, all_constraint_positions);
+    closest_vertex_indices.conservativeResize(cnt);
+    closest_vertex_positions.conservativeResize(cnt, 3);
+
+    cout << "closest constraint size " << closest_vertex_indices.rows() << endl;
+
+    VectorXi all_constraints, all_constraints_;
+    MatrixXd all_constraint_positions, all_constraint_positions_;
+    igl::cat(1, closest_vertex_indices, boundary_vertex_indices, all_constraints_);
+    igl::cat(1, all_constraints_, landmarks_temp, all_constraints);
+    igl::cat(1, closest_vertex_positions, boundary_vertex_positions, all_constraint_positions_);
+    igl::cat(1, all_constraint_positions_, landmark_positions, all_constraint_positions);
 
     ConvertConstraintsToMatrixForm(V_temp, all_constraints, all_constraint_positions, c, d);
+    cout << "set constraints done\n";
 
     SparseLU<SparseMatrix<double, ColMajor>, COLAMDOrdering<int> > solver;
 
