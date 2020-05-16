@@ -68,7 +68,7 @@ void non_rigid_warping(MatrixXd& V_temp,
 
     // TODO: find appropiate threshold
     unordered_set<int> clst_constraints;
-    double threshold = .5;
+    double threshold = 2;
     int idx;
     int cnt = 0;
     for (int i = 0; i < V_temp.rows(); i++) {
