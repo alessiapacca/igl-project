@@ -21,3 +21,12 @@
 - Currently using only the provided landmark example
 - To be updated when more landmark data available
 - Click the `Rigid Alignment` button to see the demo
+
+---
+
+## how to run non-rigid alignment example
+
+- Click the `Rigid Alignment` button first
+- Click the `Non-Rigid Warping` until the number of closest point constraint converges
+- Click the `Display Template` to see the warping result
+- If you reset threshold or resolution, start again from rigid alignment
