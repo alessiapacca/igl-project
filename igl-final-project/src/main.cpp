@@ -12,7 +12,7 @@
 #include <igl/cotmatrix.h>
 #include <igl/repdiag.h>
 #include <igl/boundary_loop.h>
-
+#include "uniform_grid.h"
 //activate this for alternate UI (easier to debug)
 //#define UPDATE_ONLY_ON_UP
 
@@ -55,6 +55,7 @@ Eigen::Vector4f rotation(0,0,0,1.);
 typedef Eigen::Triplet<double> T;
 //per vertex color array, #V x3
 Eigen::MatrixXd vertex_colors;
+UniformGrid ug;
 
 //function declarations (see below for implementation)
 bool load_mesh(string filename);
@@ -159,6 +160,10 @@ void rigid_alignment()
     Matrix3d bestRotation = svd_U * I * svd_V.transpose();
     V *= bestRotation;
 
+    Vector3d bb_min = V.colwise().minCoeff().transpose();
+    Vector3d bb_max = V.colwise().maxCoeff().transpose();
+    ug = UniformGrid(bb_min, bb_max);
+    ug.init_grid(V);
     // update landmark positions
     igl::slice(V, landmarks, 1, landmark_positions);
 
@@ -288,7 +293,7 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
             {
-                non_rigid_warping(V_temp, F_temp, landmarks_temp, landmark_positions);
+                non_rigid_warping(V_temp, F_temp, landmarks_temp, landmark_positions, V, ug);
             }
 
             if (ImGui::Button("Display Non-Rigid Result", ImVec2(-1,0)))

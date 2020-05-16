@@ -2,11 +2,16 @@
 #include <igl/cotmatrix.h>
 #include <igl/repdiag.h>
 #include <igl/boundary_loop.h>
+#include "uniform_grid.h"
 
 using namespace std;
 using namespace Eigen;
 
-void ConvertConstraintsToMatrixForm(MatrixXd V, VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d)
+void ConvertConstraintsToMatrixForm(MatrixXd V,
+                                    VectorXi indices,
+                                    MatrixXd positions,
+                                    Eigen::SparseMatrix<double> &C,
+                                    VectorXd &d)
 {
 	C = Eigen::SparseMatrix<double>(indices.rows() * 3, V.rows() * 3);
 	C.setZero();
@@ -29,7 +34,9 @@ void ConvertConstraintsToMatrixForm(MatrixXd V, VectorXi indices, MatrixXd posit
 void non_rigid_warping(MatrixXd& V_temp,
 					   const MatrixXi& F_temp, 
 					   const VectorXi& landmarks_temp,
-					   const MatrixXd& landmark_positions) {
+					   const MatrixXd& landmark_positions,
+                       const MatrixXd& V,
+                       UniformGrid& ug) {
     VectorXi f;
     SparseMatrix<double> L, A, A1, A2, A3, c;
     VectorXd x_prime, b(V_temp.rows() * 3), d;
@@ -44,10 +51,21 @@ void non_rigid_warping(MatrixXd& V_temp,
     igl::repdiag(L, 3, A);
 
     // DONE: add boundary points to constraint ************************
+  
     VectorXi boundary_vertex_indices;
     MatrixXd boundary_vertex_positions;
     igl::boundary_loop(F_temp, boundary_vertex_indices);
     igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
+
+    // TODO: find appropriate threshold
+    double threshold = 0.5;
+    for (int i = 0; i < V_temp.rows(); i++) {
+        double dist = ug.query(V_temp.row(i), V);
+
+        if (dist < threshold && dist != -1) {
+            // ADD V_temp.row(i) to constraint;
+        }
+    }
 
     VectorXi all_constraints;
     MatrixXd all_constraint_positions;
