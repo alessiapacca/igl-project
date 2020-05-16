@@ -141,7 +141,7 @@ void rigid_alignment()
     V_temp *= scaling_factor;
     igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
 
-    // translate mesh to be centered at template landmark mean
+    // center at landmark mean
     RowVector3d lm_centroid = landmark_positions.colwise().mean();
     RowVector3d lm_centroid_temp = landmark_positions_temp.colwise().mean();
     V = V.rowwise() - lm_centroid;
