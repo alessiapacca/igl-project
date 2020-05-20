@@ -164,6 +164,81 @@ void rigid_alignment()
 
 }
 
+int nb_eigenfaces = 3;
+Eigen::MatrixXd mean_face_V;
+Eigen::MatrixXi mean_face_F;
+std::vector<Eigen::MatrixXd> eigen_faces;
+std::vector<float> eigen_face_weights(3, 1.0);
+
+// The eigen_faces pca. Need the faces to be used. Each face is represented by its set of vertices.
+void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
+    int S = faces.size();
+    if (nb_eigenfaces > S){
+        std::cout << "Problem: please ask for less eigen vectors\n";
+        return;
+    }
+
+    // Computing the mean face
+    mean_face_V = Eigen::MatrixXd::Zero(faces[0].rows(), 3);
+    for (int i=0; i<S; i++){
+        mean_face_V = mean_face_V + faces[i];
+    }
+    mean_face_V = mean_face_V/S;
+
+    // Computing the covariance matrix
+    MatrixXd C = Eigen::MatrixXd::Zero(faces[0].rows()*3, faces[0].rows()*3); // 3#V * 3#V matrix
+    VectorXd mean_face_flatten = Map<const VectorXd>(mean_face_V.data(), mean_face_V.size());
+    for (int i=0; i<S; i++){
+        VectorXd face_flatten = Map<const VectorXd>(faces[i].data(), faces[i].size());
+        // std::cout << faces[i].row(0) << "\n\n\n" << face_flatten.row(0) << " " << face_flatten.row(1) << " " << face_flatten.row(2) << " " << std::endl;
+        VectorXd centered_face = face_flatten - mean_face_flatten;
+        C += centered_face * centered_face.transpose();
+    }
+
+    JacobiSVD<MatrixXd> svd(C, ComputeThinU | ComputeThinV);
+    // Eigen::EigenSolver<MatrixXd> egn(C);
+    // auto eigen_vectors = egn.eigenvectors();
+    // cout << "Its singular values are:" << endl << svd.singularValues();
+    MatrixXd eigen_vectors = svd.matrixU();
+
+    for (int i=0; i<nb_eigenfaces; i++){
+        Eigen::MatrixXd eigen_vector_current = eigen_vectors.row(i);
+        Map<MatrixXd> eigen_face(eigen_vector_current.data(), faces[0].rows(), 3);
+        eigen_faces.push_back(eigen_face);
+    }
+
+    // cout << "Its singular values are:" << endl << svd.singularValues() << endl;
+    // cout << "Its left singular vectors are the columns of the thin U matrix:" << endl << svd.matrixU() << endl;
+    // cout << "Its right singular vectors are the columns of the thin V matrix:" << endl << svd.matrixV() << endl;
+}
+
+void eigen_face_computations(std::vector<std::__cxx11::string> files){
+    std::vector<Eigen::MatrixXd> faces;
+
+    Eigen::MatrixXd VV(0,3);
+    Eigen::MatrixXi FF(0,3);
+    for (auto it = files.begin(); it!=files.end(); it++){
+        igl::read_triangle_mesh(*it,VV,FF);
+        faces.push_back(VV);
+    }
+
+    pca_eigenfaces(faces);
+    mean_face_F = FF;
+
+    viewer.data().clear();
+    viewer.data().set_mesh(mean_face_V, mean_face_F);
+}
+
+void eigen_face_update(){
+    Eigen::MatrixXd new_face = mean_face_V;
+    for (int i=0; i<nb_eigenfaces; i++){
+        // std::cout << eigen_face_weights[i] << "\n\n" << eigen_faces[i] << "\n\n\n\n\n\n\n\n";
+        new_face+=eigen_face_weights[i]*eigen_faces[i];
+    }
+    viewer.data().clear();
+    viewer.data().set_mesh(new_face, mean_face_F);
+}
+
 bool solve(Viewer& viewer)
 {
     return true;
@@ -308,6 +383,74 @@ int main(int argc, char *argv[])
             ImGui::InputInt("Resolution y", &yres, 0, 0);
             ImGui::InputInt("Resolution z", &zres, 0, 0);
         }
+    };
+
+    // Draw additional windows
+    menu.callback_draw_custom_window = [&]()
+    {
+    // Define next window position + size
+    ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin(
+      "Eigenfaces", nullptr,
+      ImGuiWindowFlags_NoSavedSettings
+    );
+
+    // Select the folder with all the faces
+    if (ImGui::CollapsingHeader("Meshes", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        float w = ImGui::GetContentRegionAvailWidth();
+        float p = ImGui::GetStyle().FramePadding.x;
+        if (ImGui::Button("Run SVD##Meshes", ImVec2((w-p), 0)))
+        {
+            std::vector<std::__cxx11::string> files {"../data/aligned_faces_example/example1/fabian-brille.objaligned.obj", 
+            "../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj", 
+            "../data/aligned_faces_example/example1/fabian-smile.objaligned.obj"
+            // "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",      
+            // "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",  
+            // "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/simon-smile.objaligned.obj",       
+            // "../data/aligned_faces_example/example1/zsombor-neutral.objaligned.obj",
+            // "../data/aligned_faces_example/example1/livio-brille.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
+            // "../data/aligned_faces_example/example1/virginia-brille.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/zsombor-smile.objaligned.obj",
+            // "../data/aligned_faces_example/example1/livio-neutral.objaligned.obj",  
+            // "../data/aligned_faces_example/example1/nici-brille.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/virginia-neutral.objaligned.obj",
+            // "../data/aligned_faces_example/example1/jan-brille.objaligned.obj",     
+            // "../data/aligned_faces_example/example1/livio-smile.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/nici-neutral.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/simon-brille.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/virginia-smile.objaligned.obj",
+            // "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",     
+            // "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/nici-smile.objaligned.obj",     
+            // "../data/aligned_faces_example/example1/simon-neutral.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/zsombor-brille.objaligned.obj"
+
+             };
+            eigen_face_computations(files);
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+
+        ImGui::InputInt("Nb Eigenfaces", &nb_eigenfaces, 0, 0);
+        if (ImGui::SliderFloat("Eigenface 1", &eigen_face_weights[0], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 2", &eigen_face_weights[1], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 3", &eigen_face_weights[2], 0, 100)){
+            eigen_face_update();
+        }
+
+    }
+
+
+
+    ImGui::End();
     };
 
     viewer.callback_key_down = callback_key_down;
