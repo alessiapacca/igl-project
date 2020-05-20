@@ -164,7 +164,7 @@ void rigid_alignment()
 
 }
 
-int nb_eigenfaces = 4;
+int nb_eigenfaces = 8;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
@@ -189,47 +189,43 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
 
     // Computing the covariance matrix
     MatrixXd C = Eigen::MatrixXd::Zero(faces[0].rows()*3, faces[0].rows()*3); // 3#V * 3#V matrix
-    VectorXd mean_face_flatten = Map<const VectorXd>(mean_face_V.data(), mean_face_V.size());
+
+    VectorXd mean_face_flatten(3*mean_face_V.rows());
+    for (int j = 0; j< mean_face_V.rows(); j++){
+        mean_face_flatten[3*j+0] = mean_face_V.row(j)[0];
+        mean_face_flatten[3*j+1] = mean_face_V.row(j)[1];
+        mean_face_flatten[3*j+2] = mean_face_V.row(j)[2];
+    }
+
     for (int i=0; i<S; i++){
         VectorXd face_flatten(3*faces[i].rows());
-        for (int j = 0; j< faces[j].rows(); j++){
+        for (int j = 0; j< faces[i].rows(); j++){
             face_flatten[3*j+0] = faces[i].row(j)[0];
             face_flatten[3*j+1] = faces[i].row(j)[1];
             face_flatten[3*j+2] = faces[i].row(j)[2];
         }
-        // VectorXd face_flatten = Map<const VectorXd>(faces[i].data(), faces[i].size());
-        // std::cout << faces[i].row(0) << "\n\n\n" << face_flatten.row(0) << " " << face_flatten.row(1) << " " << face_flatten.row(2) << " " << std::endl;
         VectorXd centered_face = face_flatten - mean_face_flatten;
         C += centered_face * centered_face.transpose();
     }
 
+    C/=S;
+
     JacobiSVD<MatrixXd> svd(C, ComputeThinU | ComputeThinV);
-    // Eigen::EigenSolver<MatrixXd> egn(C);
-    // auto eigen_vectors = egn.eigenvectors();
-    // cout << "Its singular values are:" << endl << svd.singularValues();
     auto sv = svd.singularValues();
     eigen_values = VectorXd(nb_eigenfaces);
     for (int i=0; i<nb_eigenfaces; i++){
         eigen_values.row(i) = sv.row(i);
     }
-    // eigen_values << svd.singularValues();
-    // cout << eigen_values << std::endl;
-    MatrixXd eigen_vectors = svd.matrixV();
-
+    MatrixXd eigen_vectors = svd.matrixU();
     for (int i=0; i<nb_eigenfaces; i++){
         Eigen::MatrixXd eigen_vector_current = eigen_vectors.col(i);
-        Map<MatrixXd> eigen_face(eigen_vector_current.data(), faces[0].rows(), 3);
-        // MatrixXd eigen_face(faces[0].rows(), 3);
-        // for (int j = 0; j< faces[0].rows(); j++){
-        //     eigen_face.row(j) << eigen_vector_current.row(3*j+0), eigen_vector_current.row(3*j+1), eigen_vector_current.row(3*j+2) ;
-        // }
-        // std::cout << eigen_face.row(0) << "\n\n\n" << eigen_vector_current.row(0) << " " << eigen_vector_current.row(1) << " " << eigen_vector_current.row(2) << " " << std::endl;
+        MatrixXd eigen_face(faces[0].rows(), 3);
+        for (int j = 0; j< faces[0].rows(); j++){
+            eigen_face.row(j) << eigen_vector_current.row(3*j+0), eigen_vector_current.row(3*j+1), eigen_vector_current.row(3*j+2) ;
+        }
         eigen_faces.push_back(eigen_face);
     }
 
-    // cout << "Its singular values are:" << endl << svd.singularValues() << endl;
-    // cout << "Its left singular vectors are the columns of the thin U matrix:" << endl << svd.matrixU() << endl;
-    // cout << "Its right singular vectors are the columns of the thin V matrix:" << endl << svd.matrixV() << endl;
 }
 
 void eigen_face_computations(std::vector<std::string> files){
@@ -251,8 +247,9 @@ void eigen_face_computations(std::vector<std::string> files){
 
 void eigen_face_update(){
     Eigen::MatrixXd new_face = mean_face_V;
+    // std::cout << eigen_values << std::endl;
     for (int i=0; i<nb_eigenfaces; i++){
-        new_face+=eigen_face_weights[i]*eigen_faces[i];//*eigen_values.row(i);
+        new_face+=eigen_face_weights[i]*eigen_faces[i]*eigen_values.row(i)/100;
     }
     viewer.data().clear();
     viewer.data().set_mesh(new_face, mean_face_F);
@@ -409,7 +406,7 @@ int main(int argc, char *argv[])
     {
     // Define next window position + size
     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiSetCond_FirstUseEver);
     ImGui::Begin(
       "Eigenfaces", nullptr,
       ImGuiWindowFlags_NoSavedSettings
@@ -431,14 +428,14 @@ int main(int argc, char *argv[])
             "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",    
             "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",   
             "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",  
-            "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
-            "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
-            "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
-            "../data/aligned_faces_example/example1/simon-brille.objaligned.obj",    
-            "../data/aligned_faces_example/example1/simon-neutral.objaligned.obj",   
-            "../data/aligned_faces_example/example1/simon-smile.objaligned.obj",       
+            // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
+            // "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/simon-brille.objaligned.obj",    
+            // "../data/aligned_faces_example/example1/simon-neutral.objaligned.obj",   
+            // "../data/aligned_faces_example/example1/simon-smile.objaligned.obj",       
             // "../data/aligned_faces_example/example1/zsombor-smile.objaligned.obj",
-            // "../data/aligned_faces_example/example1/zsombor-brille.objaligned.obj"
+            // "../data/aligned_faces_example/example1/zsombor-brille.objaligned.obj",
             // "../data/aligned_faces_example/example1/zsombor-neutral.objaligned.obj",
             // "../data/aligned_faces_example/example1/livio-brille.objaligned.obj",   
             // "../data/aligned_faces_example/example1/livio-smile.objaligned.obj",    
@@ -458,11 +455,14 @@ int main(int argc, char *argv[])
     if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
     {
 
-        ImGui::InputInt("Nb Eigenfaces", &nb_eigenfaces, 0, 0);
         if (ImGui::SliderFloat("Eigenface 1", &eigen_face_weights[0], 0, 100)
         ||  ImGui::SliderFloat("Eigenface 2", &eigen_face_weights[1], 0, 100)
         ||  ImGui::SliderFloat("Eigenface 3", &eigen_face_weights[2], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 4", &eigen_face_weights[3], 0, 100)){
+        ||  ImGui::SliderFloat("Eigenface 4", &eigen_face_weights[3], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 5", &eigen_face_weights[4], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 6", &eigen_face_weights[5], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 7", &eigen_face_weights[6], 0, 100)
+        ||  ImGui::SliderFloat("Eigenface 8", &eigen_face_weights[7], 0, 100)){
             eigen_face_update();
         }
 
