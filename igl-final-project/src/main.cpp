@@ -168,12 +168,26 @@ int nb_eigenfaces = 8;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
-// std::vector<double> 
+
+VectorXd weights_morph_f1, weights_morph_f2;
+VectorXd mean_face_flatten;
+std::vector<VectorXd> eigen_faces_flatten;
+std::vector<VectorXd> original_faces_flatten;
+
 VectorXd eigen_values;
 std::vector<float> eigen_face_weights(nb_eigenfaces, 0.0);
+bool has_svd_run = false;
+bool has_initialized_morph = false;
 
 // The eigen_faces pca. Need the faces to be used. Each face is represented by its set of vertices.
 void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
+
+    std::cout << "PCA start!" << std::endl;
+
+    original_faces_flatten.clear();
+    eigen_faces_flatten.clear();
+    eigen_faces.clear();
+
     int S = faces.size();
     if (nb_eigenfaces > S){
         std::cout << "Problem: please ask for less eigen vectors\n";
@@ -187,10 +201,12 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
     }
     mean_face_V = mean_face_V/S;
 
+    std::cout << "Mean Face Calculated!" << std::endl;
+
     // Computing the covariance matrix
     MatrixXd C = Eigen::MatrixXd::Zero(faces[0].rows()*3, faces[0].rows()*3); // 3#V * 3#V matrix
 
-    VectorXd mean_face_flatten(3*mean_face_V.rows());
+    mean_face_flatten.setZero(3*mean_face_V.rows());
     for (int j = 0; j< mean_face_V.rows(); j++){
         mean_face_flatten[3*j+0] = mean_face_V.row(j)[0];
         mean_face_flatten[3*j+1] = mean_face_V.row(j)[1];
@@ -204,11 +220,14 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
             face_flatten[3*j+1] = faces[i].row(j)[1];
             face_flatten[3*j+2] = faces[i].row(j)[2];
         }
+        original_faces_flatten.push_back(face_flatten);
         VectorXd centered_face = face_flatten - mean_face_flatten;
         C += centered_face * centered_face.transpose();
     }
 
     C/=S;
+
+    std::cout << "Covariance calculated" << std::endl;
 
     JacobiSVD<MatrixXd> svd(C, ComputeThinU | ComputeThinV);
     auto sv = svd.singularValues();
@@ -216,6 +235,7 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
     for (int i=0; i<nb_eigenfaces; i++){
         eigen_values.row(i) = sv.row(i);
     }
+    std::cout << "Eigen Values calculated" << std::endl;
     MatrixXd eigen_vectors = svd.matrixU();
     for (int i=0; i<nb_eigenfaces; i++){
         Eigen::MatrixXd eigen_vector_current = eigen_vectors.col(i);
@@ -224,8 +244,11 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
             eigen_face.row(j) << eigen_vector_current.row(3*j+0), eigen_vector_current.row(3*j+1), eigen_vector_current.row(3*j+2) ;
         }
         eigen_faces.push_back(eigen_face);
+        eigen_faces_flatten.push_back(eigen_vectors.col(i));
+        std::cout << "Eigen Face calculated" << std::endl;
     }
-
+    std::cout << "PCA Done" << std::endl;
+    has_svd_run = true;
 }
 
 void eigen_face_computations(std::vector<std::string> files){
@@ -236,6 +259,7 @@ void eigen_face_computations(std::vector<std::string> files){
     for (auto it = files.begin(); it!=files.end(); it++){
         igl::read_triangle_mesh(*it,VV,FF);
         faces.push_back(VV);
+        std::cout << "1 file read!" << std::endl;
     }
 
     pca_eigenfaces(faces);
@@ -249,10 +273,51 @@ void eigen_face_update(){
     Eigen::MatrixXd new_face = mean_face_V;
     // std::cout << eigen_values << std::endl;
     for (int i=0; i<nb_eigenfaces; i++){
-        new_face+=eigen_face_weights[i]*eigen_faces[i]*eigen_values.row(i)/100;
+        MatrixXd tmp = eigen_faces[i];
+        std::cout << "Done1" << "\n";
+        tmp *= eigen_face_weights[i];
+        std::cout << "Done2" << "\n";
+        tmp *= eigen_values.row(i); // Here it crashes / I know i look like a debug pro with those Done statements :D
+        std::cout << "Done3" << "\n";
+        tmp /= 100;
+        std::cout << "Done4" << "\n";
+        new_face += tmp;
+        std::cout << "Done5" << "\n";
+        //new_face += eigen_faces[i] * eigen_face_weights[i] * eigen_values.row(i) / 100;
     }
     viewer.data().clear();
     viewer.data().set_mesh(new_face, mean_face_F);
+}
+
+//Not tested yet.
+void initialize_morphing(int face_index1, int face_index2)
+{
+    if (!has_svd_run) {
+        std::cout << "Morphing Initialize: First run SVD to calculate the Eigen faces!" << std::endl;
+        return;
+    }
+
+    int num_faces = original_faces_flatten.size();
+    if (face_index1 >= num_faces || face_index2 >= num_faces) {
+        std::cout << "Morphing Initialize: Face indices out of bounds!" << std::endl;
+        return;
+    }
+
+    VectorXd x1 = original_faces_flatten[face_index1] - mean_face_flatten;
+    VectorXd x2 = original_faces_flatten[face_index2] - mean_face_flatten;
+    VectorXd x1_t = x1.transpose();
+    VectorXd x2_t = x2.transpose();
+
+    weights_morph_f1.setZero(nb_eigenfaces);
+    weights_morph_f2.setZero(nb_eigenfaces);
+    for (int i = 0; i < nb_eigenfaces; i++) {
+        weights_morph_f1[i] = x1_t.dot(eigen_faces_flatten[i]);
+        weights_morph_f2[i] = x2_t.dot(eigen_faces_flatten[i]);
+    }
+}
+
+void face_morphing(float weight) {
+    //f_morph = mean_face + sum (weigts_morph_f1_i - nb_eigenfaces * (weights_morph_f1_i - weights_morph_f2_i)) * eigen_faces[i]
 }
 
 bool solve(Viewer& viewer)
