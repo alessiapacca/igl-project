@@ -70,6 +70,8 @@ bool callback_mouse_up(Viewer& viewer, int button, int modifier);
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers);
 void onNewHandleID();
 void applySelection();
+void calculate_pca_weights_for_each_face();
+void calculate_variance_covered();
 
 // template vertices and faces
 Eigen::MatrixXd V_temp(0,3);
@@ -165,24 +167,30 @@ void rigid_alignment()
 }
 
 int nb_eigenfaces = 3;
+int nb_faces = nb_eigenfaces;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
 
+
 int f1_idx = 0, f2_idx = 1;
 float morph_weight = 50;
-VectorXd weights_morph_f1, weights_morph_f2;
 VectorXd mean_face_flatten;
 std::vector<VectorXd> eigen_faces_flatten;
 std::vector<VectorXd> original_faces_flatten;
+std::vector<VectorXd> face_pca_weights;
+
 
 VectorXd eigen_values;
 std::vector<float> eigen_face_weights(nb_eigenfaces, 0.0);
+std::vector<double> variance_covered(nb_eigenfaces, 1.0 / nb_eigenfaces);
+std::vector<double> min_weights(nb_eigenfaces, 10000);
+std::vector<double> max_weights(nb_eigenfaces, -10000);
 bool has_svd_run = false;
 bool has_initialized_morph = false;
 
 // The eigen_faces pca. Need the faces to be used. Each face is represented by its set of vertices.
-void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
+void pca_eigenfaces(const std::vector<Eigen::MatrixXd> faces){
 
     std::cout << "PCA start!" << std::endl;
 
@@ -190,18 +198,18 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
     eigen_faces_flatten.clear();
     eigen_faces.clear();
 
-    int S = faces.size();
-    if (nb_eigenfaces > S){
+    nb_faces = faces.size();
+    if (nb_eigenfaces > nb_faces){
         std::cout << "Problem: please ask for less eigen vectors\n";
         return;
     }
 
     // Computing the mean face
     mean_face_V = Eigen::MatrixXd::Zero(faces[0].rows(), 3);
-    for (int i=0; i<S; i++){
+    for (int i=0; i<nb_faces; i++){
         mean_face_V = mean_face_V + faces[i];
     }
-    mean_face_V = mean_face_V/S;
+    mean_face_V = mean_face_V/nb_faces;
 
     std::cout << "Mean Face Calculated!" << std::endl;
 
@@ -215,7 +223,7 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
         mean_face_flatten[3*j+2] = mean_face_V.row(j)[2];
     }
 
-    for (int i=0; i<S; i++){
+    for (int i=0; i<nb_faces; i++){
         VectorXd face_flatten(3*faces[i].rows());
         for (int j = 0; j< faces[i].rows(); j++){
             face_flatten[3*j+0] = faces[i].row(j)[0];
@@ -227,7 +235,7 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
         C += centered_face * centered_face.transpose();
     }
 
-    C/=S;
+    C/=nb_faces;
 
     std::cout << "Covariance calculated" << std::endl;
 
@@ -249,8 +257,13 @@ void pca_eigenfaces(std::vector<Eigen::MatrixXd> faces){
         eigen_faces_flatten.push_back(eigen_vectors.col(i));
         std::cout << "Eigen Face calculated" << std::endl;
     }
+
+    calculate_pca_weights_for_each_face();
+    calculate_variance_covered();
+
     std::cout << "PCA Done" << std::endl;
     has_svd_run = true;
+    has_initialized_morph = true;
 }
 
 void eigen_face_computations(std::vector<std::string> files){
@@ -272,56 +285,64 @@ void eigen_face_computations(std::vector<std::string> files){
 }
 
 void eigen_face_update(){
+    if (!has_svd_run)
+        return;
+
     Eigen::MatrixXd new_face = mean_face_V;
     // std::cout << eigen_values << std::endl;
     for (int i=0; i<nb_eigenfaces; i++){
-        new_face += eigen_faces[i] * eigen_face_weights[i] * eigen_values[i] * 0.01;
+        new_face += eigen_faces[i] * eigen_face_weights[i];
     }
     viewer.data().clear();
     viewer.data().set_mesh(new_face, mean_face_F);
 }
 
+void calculate_pca_weights_for_each_face() {
+    face_pca_weights.clear();
+    for(int i = 0; i < nb_faces; i++) {
+        VectorXd x = original_faces_flatten[i] - mean_face_flatten;
+        VectorXd x_t = x.transpose();
+        VectorXd weights = VectorXd::Zero(nb_eigenfaces);
+        for (int i = 0; i < nb_eigenfaces; i++) {
+            weights[i] = x_t.dot(eigen_faces_flatten[i]);
 
-void initialize_morphing(int face_index1, int face_index2)
-{
-    if (!has_svd_run) {
-        std::cout << "Morphing Initialize: First run SVD to calculate the Eigen faces!" << std::endl;
-        return;
+            if (weights[i] < min_weights[i])
+                min_weights[i] = weights[i];
+
+            if(weights[i] > max_weights[i])
+                max_weights[i] = weights[i];
+        }
+        face_pca_weights.push_back(weights);
+    }
+}
+
+void calculate_variance_covered() {
+    double total_variance = 0;
+    for(int i = 0; i < nb_eigenfaces; i++) {
+        total_variance += eigen_values[i];
     }
 
-    int num_faces = original_faces_flatten.size();
-    if (face_index1 >= num_faces || face_index2 >= num_faces) {
-        std::cout << "Morphing Initialize: Face indices out of bounds!" << std::endl;
-        return;
-    }
-
-    VectorXd x1 = original_faces_flatten[face_index1] - mean_face_flatten;
-    VectorXd x2 = original_faces_flatten[face_index2] - mean_face_flatten;
-    VectorXd x1_t = x1.transpose();
-    VectorXd x2_t = x2.transpose();
-
-    weights_morph_f1.setZero(nb_eigenfaces);
-    weights_morph_f2.setZero(nb_eigenfaces);
     for (int i = 0; i < nb_eigenfaces; i++) {
-        weights_morph_f1[i] = x1_t.dot(eigen_faces_flatten[i]);
-        weights_morph_f2[i] = x2_t.dot(eigen_faces_flatten[i]);
+        variance_covered[i] = eigen_values[i] / total_variance;
     }
-    has_initialized_morph = true;
 }
 
 void face_morphing() {
-    if (!has_initialized_morph)
+    if (!has_svd_run)
     {
-        std::cout << "Face Morphing Not Initialized!" << std::endl;
+        std::cout << "Face Morphing: First run SVD!" << std::endl;
         return;
     }
     MatrixXd f_morph = mean_face_V;
     for (int i = 0; i < nb_eigenfaces; i++) {
-        f_morph += (weights_morph_f1[i] + morph_weight * 0.01 * (weights_morph_f2[i] - weights_morph_f1[i])) * eigen_faces[i];
+        double w_f1_i = face_pca_weights[f1_idx][i];
+        double w_f2_i = face_pca_weights[f2_idx][i];
+        double weight = w_f1_i + morph_weight * 0.01 * (w_f2_i - w_f1_i);
+        eigen_face_weights[i] = weight;
+        f_morph += (weight) * eigen_faces[i];
     }
     viewer.data().clear();
     viewer.data().set_mesh(f_morph, mean_face_F);
-    //f_morph = mean_face + sum (weigts_morph_f1_i - nb_eigenfaces * (weights_morph_f1_i - weights_morph_f2_i)) * eigen_faces[i]
 }
 
 bool solve(Viewer& viewer)
@@ -491,15 +512,15 @@ int main(int argc, char *argv[])
             std::vector<std::string> files {"../data/aligned_faces_example/example1/fabian-brille.objaligned.obj", 
             //"../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj",
             //"../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
-            "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",
-            //"../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
+            //"../data/aligned_faces_example/example1/jan-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
             //"../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
-            "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
+            //"../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
             //"../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
             //"../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
             // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
             // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
-            // "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
+             "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",
             // "../data/aligned_faces_example/example1/simon-brille.objaligned.obj",    
             // "../data/aligned_faces_example/example1/simon-neutral.objaligned.obj",   
             // "../data/aligned_faces_example/example1/simon-smile.objaligned.obj",       
@@ -523,33 +544,29 @@ int main(int argc, char *argv[])
 
     if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
     {
-
-        if (ImGui::SliderFloat("Eigenface 1", &eigen_face_weights[0], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 2", &eigen_face_weights[1], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 3", &eigen_face_weights[2], 0, 100))
-        //||  ImGui::SliderFloat("Eigenface 4", &eigen_face_weights[3], 0, 100)
-        //||  ImGui::SliderFloat("Eigenface 5", &eigen_face_weights[4], 0, 100)
-        //||  ImGui::SliderFloat("Eigenface 6", &eigen_face_weights[5], 0, 100)
-        //||  ImGui::SliderFloat("Eigenface 7", &eigen_face_weights[6], 0, 100)
-        //||  ImGui::SliderFloat("Eigenface 8", &eigen_face_weights[7], 0, 100))
-        {
+        ImGui::Text("Eigenface %d:   Variance Covered: %f", 1, variance_covered[0]);
+        if (ImGui::SliderFloat("1", &eigen_face_weights[0], min_weights[0], max_weights[0]))
             eigen_face_update();
-        }
 
+        ImGui::Text("Eigenface %d:   Variance Covered: %f", 2, variance_covered[1]);
+        if (ImGui::SliderFloat("2", &eigen_face_weights[1], min_weights[1], max_weights[1]))
+            eigen_face_update();
+
+        ImGui::Text("Eigenface %d:   Variance Covered: %f",  3, variance_covered[2]);
+        if (ImGui::SliderFloat("3", &eigen_face_weights[2], min_weights[2], max_weights[2]))
+            eigen_face_update();
     }
 
     if (ImGui::CollapsingHeader("Morphing"), ImGuiTreeNodeFlags_DefaultOpen)
     {
-        if(ImGui::SliderInt("Face ID 1", &f1_idx, 0, 7))
-            has_initialized_morph = false;
-        if(ImGui::SliderInt("Face ID 2", &f2_idx, 0, 7))
-            has_initialized_morph = false;
-
-        if (ImGui::SliderFloat("Morphing", &morph_weight, 0, 100)) {
-            if (!has_initialized_morph)
-                initialize_morphing(f1_idx, f2_idx);
+        if(ImGui::SliderInt("Face ID 1", &f1_idx, 0, nb_faces - 1))
             face_morphing();
-        }
+
+        if(ImGui::SliderInt("Face ID 2", &f2_idx, 0, nb_faces - 1))
+            face_morphing();
+
+        if (ImGui::SliderFloat("Morphing", &morph_weight, 0, 100))
+            face_morphing();
     }
 
 
