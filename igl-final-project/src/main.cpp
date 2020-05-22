@@ -273,17 +273,7 @@ void eigen_face_update(){
     Eigen::MatrixXd new_face = mean_face_V;
     // std::cout << eigen_values << std::endl;
     for (int i=0; i<nb_eigenfaces; i++){
-        MatrixXd tmp = eigen_faces[i];
-        std::cout << "Done1" << "\n";
-        tmp *= eigen_face_weights[i];
-        std::cout << "Done2" << "\n";
-        tmp *= eigen_values.row(i); // Here it crashes / I know i look like a debug pro with those Done statements :D
-        std::cout << "Done3" << "\n";
-        tmp /= 100;
-        std::cout << "Done4" << "\n";
-        new_face += tmp;
-        std::cout << "Done5" << "\n";
-        //new_face += eigen_faces[i] * eigen_face_weights[i] * eigen_values.row(i) / 100;
+        new_face += eigen_faces[i] * eigen_face_weights[i] * eigen_values[i] * 0.01;
     }
     viewer.data().clear();
     viewer.data().set_mesh(new_face, mean_face_F);
@@ -488,11 +478,11 @@ int main(int argc, char *argv[])
             "../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj", 
             "../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
             "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",      
-            "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",     
-            "../data/aligned_faces_example/example1/jan-brille.objaligned.obj",     
-            "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",    
-            "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",   
-            "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",  
+            "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
+            "../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
             // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
             // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
             // "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
