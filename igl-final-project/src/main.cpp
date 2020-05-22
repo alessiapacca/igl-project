@@ -164,11 +164,13 @@ void rigid_alignment()
 
 }
 
-int nb_eigenfaces = 8;
+int nb_eigenfaces = 3;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
 
+int f1_idx = 0, f2_idx = 1;
+float morph_weight = 50;
 VectorXd weights_morph_f1, weights_morph_f2;
 VectorXd mean_face_flatten;
 std::vector<VectorXd> eigen_faces_flatten;
@@ -279,7 +281,7 @@ void eigen_face_update(){
     viewer.data().set_mesh(new_face, mean_face_F);
 }
 
-//Not tested yet.
+
 void initialize_morphing(int face_index1, int face_index2)
 {
     if (!has_svd_run) {
@@ -304,9 +306,21 @@ void initialize_morphing(int face_index1, int face_index2)
         weights_morph_f1[i] = x1_t.dot(eigen_faces_flatten[i]);
         weights_morph_f2[i] = x2_t.dot(eigen_faces_flatten[i]);
     }
+    has_initialized_morph = true;
 }
 
-void face_morphing(float weight) {
+void face_morphing() {
+    if (!has_initialized_morph)
+    {
+        std::cout << "Face Morphing Not Initialized!" << std::endl;
+        return;
+    }
+    MatrixXd f_morph = mean_face_V;
+    for (int i = 0; i < nb_eigenfaces; i++) {
+        f_morph += (weights_morph_f1[i] + morph_weight * 0.01 * (weights_morph_f2[i] - weights_morph_f1[i])) * eigen_faces[i];
+    }
+    viewer.data().clear();
+    viewer.data().set_mesh(f_morph, mean_face_F);
     //f_morph = mean_face + sum (weigts_morph_f1_i - nb_eigenfaces * (weights_morph_f1_i - weights_morph_f2_i)) * eigen_faces[i]
 }
 
@@ -461,7 +475,7 @@ int main(int argc, char *argv[])
     {
     // Define next window position + size
     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 450), ImGuiSetCond_FirstUseEver);
     ImGui::Begin(
       "Eigenfaces", nullptr,
       ImGuiWindowFlags_NoSavedSettings
@@ -475,14 +489,14 @@ int main(int argc, char *argv[])
         if (ImGui::Button("Run SVD##Meshes", ImVec2((w-p), 0)))
         {
             std::vector<std::string> files {"../data/aligned_faces_example/example1/fabian-brille.objaligned.obj", 
-            "../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj", 
-            "../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
-            "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",      
-            "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
-            "../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
+            //"../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj",
+            //"../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",
+            //"../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
+            //"../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
             "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
-            "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
-            "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
+            //"../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
+            //"../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
             // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
             // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
             // "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",   
@@ -512,17 +526,31 @@ int main(int argc, char *argv[])
 
         if (ImGui::SliderFloat("Eigenface 1", &eigen_face_weights[0], 0, 100)
         ||  ImGui::SliderFloat("Eigenface 2", &eigen_face_weights[1], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 3", &eigen_face_weights[2], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 4", &eigen_face_weights[3], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 5", &eigen_face_weights[4], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 6", &eigen_face_weights[5], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 7", &eigen_face_weights[6], 0, 100)
-        ||  ImGui::SliderFloat("Eigenface 8", &eigen_face_weights[7], 0, 100)){
+        ||  ImGui::SliderFloat("Eigenface 3", &eigen_face_weights[2], 0, 100))
+        //||  ImGui::SliderFloat("Eigenface 4", &eigen_face_weights[3], 0, 100)
+        //||  ImGui::SliderFloat("Eigenface 5", &eigen_face_weights[4], 0, 100)
+        //||  ImGui::SliderFloat("Eigenface 6", &eigen_face_weights[5], 0, 100)
+        //||  ImGui::SliderFloat("Eigenface 7", &eigen_face_weights[6], 0, 100)
+        //||  ImGui::SliderFloat("Eigenface 8", &eigen_face_weights[7], 0, 100))
+        {
             eigen_face_update();
         }
 
     }
 
+    if (ImGui::CollapsingHeader("Morphing"), ImGuiTreeNodeFlags_DefaultOpen)
+    {
+        if(ImGui::SliderInt("Face ID 1", &f1_idx, 0, 7))
+            has_initialized_morph = false;
+        if(ImGui::SliderInt("Face ID 2", &f2_idx, 0, 7))
+            has_initialized_morph = false;
+
+        if (ImGui::SliderFloat("Morphing", &morph_weight, 0, 100)) {
+            if (!has_initialized_morph)
+                initialize_morphing(f1_idx, f2_idx);
+            face_morphing();
+        }
+    }
 
 
     ImGui::End();
