@@ -692,7 +692,7 @@ void applySelection()
     selected_v.resize(0,1);
     vector<string> labels = vector<string>(handle_vertex_positions.rows());
     for (int i = 0; i < labels.size(); i++) {
-        labels[i] = std::to_string(i);
+        labels[i] = std::to_string(handle_id[handle_vertices[i]]);
     }
     viewer.data().set_labels(handle_vertex_positions, labels);
 }
