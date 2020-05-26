@@ -1,4 +1,5 @@
 #include <igl/read_triangle_mesh.h>
+#include <igl/write_triangle_mesh.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
@@ -88,21 +89,18 @@ int xres = 30, yres = 50, zres = 50;
 const int MAX_NUM_LANDMARK = 30;
 
 // read landmark from file
-VectorXi read_landmarks(const char *filename)
+void read_landmarks(VectorXi& landmarks, const string& filename)
 {
-    VectorXi landmarks;
-    landmarks.setZero(MAX_NUM_LANDMARK);
+    landmarks.resize(MAX_NUM_LANDMARK);
 
     fstream fin(filename);
     int vertex_id = 0, landmark_num = 0, cnt = 0;
     while(fin >> vertex_id >> landmark_num) {
-        landmarks(landmark_num-1) = vertex_id;
-        cnt = max(cnt, landmark_num);
+        landmarks(landmark_num) = vertex_id;
+        cnt = max(cnt, landmark_num+1);
     }
 
     landmarks.conservativeResize(cnt);
-
-    return landmarks;
 }
 
 void write_landmarks(const char* filename) {
@@ -113,6 +111,13 @@ void write_landmarks(const char* filename) {
     fout.close();
 }
 
+inline void set_vec_from_file(vector<string>& v, const string& filename)
+{
+    fstream fin(filename);
+    string item;
+    while(getline(fin, item)) v.push_back(item);
+}
+
 // compute average distance to mean landmark
 inline double avg_dist(const MatrixXd& mat)
 {
@@ -121,15 +126,16 @@ inline double avg_dist(const MatrixXd& mat)
     return dist.mean();
 }
 
-void rigid_alignment()
+void rigid_alignment(const string& objfile, const string& lmfile)
 {
     //load scanned mesh
-    load_mesh("../data/landmarks_example/person0_.obj");
-    landmarks = read_landmarks("../data/landmarks_example/person0__23landmarks");
+    load_mesh(objfile);
+    read_landmarks(landmarks, lmfile);
     igl::slice(V, landmarks, 1, landmark_positions);
 
     // load template
-    igl::read_triangle_mesh("../data/landmarks_example/headtemplate.obj",V_temp,F_temp);    landmarks_temp = read_landmarks("../data/landmarks_example/headtemplate_23landmarks");
+    igl::read_triangle_mesh("../data/face_template/headtemplate_noneck.obj",V_temp,F_temp);    
+    read_landmarks(landmarks_temp, "../data/headtemplate_noneck_landmarks.txt");
     igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
 
     // center template at (0,0,0)
@@ -164,6 +170,44 @@ void rigid_alignment()
     // update landmark positions
     igl::slice(V, landmarks, 1, landmark_positions);
 
+}
+
+void align_and_save_all(const string& datadir, const string& savedir)
+{
+    vector<string> mesh_list;
+    set_vec_from_file(mesh_list, datadir + "smoothed_mesh_list");
+
+    int n_mesh = mesh_list.size();
+    cout << n_mesh << " meshes in total\n";
+    string objfile, lmfile;
+    for (int i=0; i<n_mesh; i++) {
+        objfile = datadir + mesh_list[i] + string(".obj");
+        lmfile = datadir + mesh_list[i] + string(".txt");
+        cout << "-----------" << i << "-------------\n";
+        cout << objfile << endl;
+        rigid_alignment(objfile, lmfile);
+        cout << "rigid alignment done\n";
+
+        MatrixXd V_total(V.rows() + V_temp.rows(), 3);
+        MatrixXi F_total(F.rows() + F_temp.rows(), 3);
+        V_total << V, V_temp;
+        F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
+
+        // prepare uniform grid
+        RowVector3d bb_min = V_total.colwise().minCoeff();
+        RowVector3d bb_max = V_total.colwise().maxCoeff();
+        UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
+        ug.init_grid(V);
+
+        int pre = 0;
+        while (1) {
+            int cur = non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+            if(pre == cur) break;
+            pre = cur;
+        }
+        cout << "non rigid warping converge at " << pre << " closest point constraints" << endl;
+        igl::write_triangle_mesh(savedir + mesh_list[i] + string(".obj"), V_temp, F_temp);
+    }
 }
 
 int nb_eigenfaces = 3;
@@ -442,7 +486,8 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Rigid Alignment", ImVec2(-1,0)))
             {
-                rigid_alignment();
+                rigid_alignment(string("../data/smoothed/alain_normal.obj"),
+                                string("../data/smoothed/alain_normal.txt"));
                 MatrixXd V_total(V.rows() + V_temp.rows(), 3);
                 MatrixXi F_total(F.rows() + F_temp.rows(), 3);
                 V_total << V, V_temp;
@@ -488,6 +533,11 @@ int main(int argc, char *argv[])
             ImGui::InputInt("Resolution x", &xres, 0, 0);
             ImGui::InputInt("Resolution y", &yres, 0, 0);
             ImGui::InputInt("Resolution z", &zres, 0, 0);
+
+            if (ImGui::Button("Align All Meshes", ImVec2(-1,0)))
+            {
+                align_and_save_all(string("../data/smoothed/"), string("../data/aligned/"));
+            }
         }
     };
 

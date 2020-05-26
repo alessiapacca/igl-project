@@ -35,7 +35,7 @@ void ConvertConstraintsToMatrixForm(MatrixXd V,
 
 
 // 16/05: still some artifacts, especially around nostrils and eyebrows
-void non_rigid_warping(MatrixXd& V_temp,
+int non_rigid_warping(MatrixXd& V_temp,
 					   const MatrixXi& F_temp, 
                        const VectorXi& landmarks,
 					   const VectorXi& landmarks_temp,
@@ -105,7 +105,7 @@ void non_rigid_warping(MatrixXd& V_temp,
     closest_vertex_indices.conservativeResize(cnt);
     closest_vertex_positions.conservativeResize(cnt, 3);
 
-    cout << "#closest point constraint " << closest_vertex_indices.rows() << endl;
+    // cout << "#closest point constraint " << closest_vertex_indices.rows() << endl;
 
     VectorXi all_constraints, all_constraints_;
     MatrixXd all_constraint_positions, all_constraint_positions_;
@@ -136,9 +136,10 @@ void non_rigid_warping(MatrixXd& V_temp,
 
     if (solver.info() != Eigen::Success) {
         cout << "SparseLU Failed!" << endl;
-    } else {
-        cout << "SparseLU Succeeded!" << endl;
-    }
+    } 
+    // else {
+    //     cout << "SparseLU Succeeded!" << endl;
+    // }
 
     x_prime = solver.solve(RHS);
 
@@ -146,4 +147,5 @@ void non_rigid_warping(MatrixXd& V_temp,
     V_temp.col(1) = x_prime.middleRows(V_temp.rows(), V_temp.rows());
     V_temp.col(2) = x_prime.middleRows(2*V_temp.rows(), V_temp.rows());
     
+    return closest_vertex_indices.rows();
 }
