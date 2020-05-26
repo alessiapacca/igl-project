@@ -210,8 +210,7 @@ void align_and_save_all(const string& datadir, const string& savedir)
     }
 }
 
-int nb_eigenfaces = 8;
-int nb_faces = nb_eigenfaces;
+int nb_eigenfaces = 12;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
@@ -261,6 +260,8 @@ std::vector<std::string> files_svd_eigenfaces_entry {"../data/aligned_faces_exam
             // "../data/aligned_faces_example/example1/nici-neutral.objaligned.obj",   
             // "../data/aligned_faces_example/example1/nici-smile.objaligned.obj",     
              };
+int nb_faces = files_svd_eigenfaces_entry.size();
+
 
 // The eigen_faces pca. Need the faces to be used. Each face is represented by its set of vertices.
 void pca_eigenfaces(const std::vector<Eigen::MatrixXd> faces){
@@ -383,14 +384,14 @@ void calculate_pca_weights_for_each_face() {
         VectorXd x = original_faces_flatten[i] - mean_face_flatten;
         VectorXd x_t = x.transpose();
         VectorXd weights = VectorXd::Zero(nb_eigenfaces);
-        for (int i = 0; i < nb_eigenfaces; i++) {
-            weights[i] = x_t.dot(eigen_faces_flatten[i]);
+        for (int j = 0; j < nb_eigenfaces; j++) {
+            weights[j] = x_t.dot(eigen_faces_flatten[j]);
 
-            if (weights[i] < min_weights[i])
-                min_weights[i] = weights[i];
+            if (weights[j] < min_weights[j])
+                min_weights[j] = weights[j];
 
-            if(weights[i] > max_weights[i])
-                max_weights[i] = weights[i];
+            if(weights[j] > max_weights[j])
+                max_weights[j] = weights[j];
         }
         face_pca_weights.push_back(weights);
     }
@@ -445,11 +446,13 @@ void save_results_svd(std::string root="./results_eigenfaces/"){
     }
     igl::writeOFF(root+"mean_face.off", mean_face_V, mean_face_F);
 
-    std::string file_eigenvalue = root+"eigen_values.txt", file_weight_min=root+"weight_min.txt", file_weight_max=root+"weight_max.txt", file_variance_covered=root+"variance_covered.txt";
+    std::string file_eigenvalue = root+"eigen_values.txt", file_weight_min=root+"weight_min.txt", file_weight_max=root+"weight_max.txt", file_variance_covered=root+"variance_covered.txt", entry_files=root+"list_files.txt";
     std::ofstream ofs_eigenvalues(file_eigenvalue);
     std::ofstream ofs_weight_min(file_weight_min);
     std::ofstream ofs_weight_max(file_weight_max);
     std::ofstream ofs_variance_covered(file_variance_covered);
+    std::ofstream ofs_file_list(entry_files);
+
     ofs_eigenvalues << nb_eigenfaces << "\n";
     for (int i=0; i<nb_eigenfaces; i++){
         ofs_eigenvalues << eigen_values[i] << "\n";
@@ -458,10 +461,50 @@ void save_results_svd(std::string root="./results_eigenfaces/"){
         ofs_variance_covered << variance_covered[i] << "\n";
         igl::writeOFF(root+"eigen_face_"+std::to_string(i+1)+".off", eigen_faces[i], mean_face_F);
     }
+    for (auto filename_it = files_svd_eigenfaces_entry.begin(); filename_it != files_svd_eigenfaces_entry.end(); filename_it++){
+        ofs_file_list << *filename_it << "\n";
+    }
+
     ofs_eigenvalues.close();
     ofs_weight_min.close();
     ofs_weight_max.close();
     ofs_variance_covered.close();
+}
+
+void compute_flattened_face(std::vector<std::string> files){
+    
+    mean_face_flatten.setZero(3*mean_face_V.rows());
+    for (int j = 0; j< mean_face_V.rows(); j++){
+        mean_face_flatten[3*j+0] = mean_face_V.row(j)[0];
+        mean_face_flatten[3*j+1] = mean_face_V.row(j)[1];
+        mean_face_flatten[3*j+2] = mean_face_V.row(j)[2];
+    }
+
+    original_faces_flatten.clear();
+    eigen_faces_flatten.clear();
+    Eigen::MatrixXd VV(0,3);
+    Eigen::MatrixXi FF(0,3);
+    for (auto it = files.begin(); it!=files.end(); it++){
+        igl::read_triangle_mesh(*it,VV,FF);
+        VectorXd face_flatten(3*VV.rows());
+        for (int j = 0; j< VV.rows(); j++){
+            face_flatten[3*j+0] = VV.row(j)[0];
+            face_flatten[3*j+1] = VV.row(j)[1];
+            face_flatten[3*j+2] = VV.row(j)[2];
+        }
+        original_faces_flatten.push_back(face_flatten);
+    }
+
+    for (int i=0; i<nb_eigenfaces; i++){
+        Eigen::VectorXd eigen_face_flatten(3*eigen_faces[i].rows());
+        for (int j = 0; j< eigen_faces[i].rows(); j++){
+            eigen_face_flatten[3*j+0] = eigen_faces[i].row(j)[0];
+            eigen_face_flatten[3*j+1] = eigen_faces[i].row(j)[1];
+            eigen_face_flatten[3*j+2] = eigen_faces[i].row(j)[2];
+        }
+        eigen_faces_flatten.push_back(eigen_face_flatten);
+    }
+    
 }
 
 void load_results_svd(std::string root="./results_eigenfaces/"){
@@ -470,15 +513,17 @@ void load_results_svd(std::string root="./results_eigenfaces/"){
 
     std::string line;
 
-    std::string file_eigenvalue = root+"eigen_values.txt", file_weight_min=root+"weight_min.txt", file_weight_max=root+"weight_max.txt", file_variance_covered=root+"variance_covered.txt"; 
+    std::string file_eigenvalue = root+"eigen_values.txt", file_weight_min=root+"weight_min.txt", file_weight_max=root+"weight_max.txt", file_variance_covered=root+"variance_covered.txt", entry_files=root+"list_files.txt"; 
     std::ifstream ifs_eigenvalues(file_eigenvalue);
     std::ifstream ifs_weight_min(file_weight_min);
     std::ifstream ifs_weight_max(file_weight_max);
     std::ifstream ifs_variance_covered(file_variance_covered);
+    std::ifstream ifs_file_list(entry_files);
 
     
     std::getline(ifs_eigenvalues, line);
     nb_eigenfaces = std::stoi(line);
+    std::cout << "Number of Eigenfaces: " << nb_eigenfaces << std::endl;
 
     eigen_values = VectorXd::Zero(nb_eigenfaces);
     min_weights = std::vector<double>(nb_eigenfaces, 0.0);
@@ -508,11 +553,22 @@ void load_results_svd(std::string root="./results_eigenfaces/"){
 
     igl::read_triangle_mesh(root+"mean_face.off", mean_face_V, mean_face_F);
 
+    files_svd_eigenfaces_entry.clear();
+    if (ifs_file_list.is_open()){
+        while (std::getline(ifs_file_list, line)){
+            files_svd_eigenfaces_entry.push_back(line);
+        }
+    }
+    nb_faces = files_svd_eigenfaces_entry.size();
+
+    compute_flattened_face(files_svd_eigenfaces_entry);
+    calculate_pca_weights_for_each_face();
 
     ifs_eigenvalues.close();
     ifs_weight_min.close();
     ifs_weight_max.close();
     ifs_variance_covered.close();
+    ifs_file_list.close();
 
     viewer.data().clear();
     viewer.data().set_mesh(mean_face_V, mean_face_F);
@@ -691,8 +747,10 @@ int main(int argc, char *argv[])
             std::string list_file = igl::file_dialog_open();
             if(list_file.length() == 0)
                 std::cout << "Please select a list of the entry files for the eigenfaces decomposition.\n";
-            else
+            else{
                 load_files_svd(list_file);
+                nb_faces = files_svd_eigenfaces_entry.size();
+            }
         }
         if (ImGui::Button("Run SVD##Meshes", ImVec2((w-p), 0)))
         {
@@ -725,8 +783,9 @@ int main(int argc, char *argv[])
     if (ImGui::CollapsingHeader("Saving"), ImGuiTreeNodeFlags_DefaultOpen){
         float w = ImGui::GetContentRegionAvailWidth();
         float p = ImGui::GetStyle().FramePadding.x;
-        if (ImGui::Button("Save Files##Saving", ImVec2((w-p), 0))){
+        if (ImGui::Button("Save Results##Saving", ImVec2((w-p), 0))){
             save_results_svd();
+            std::cout << "Results Saved\n";
         }
 
         if (ImGui::Button("Load SVD Results##Saving", ImVec2((w-p), 0))){
