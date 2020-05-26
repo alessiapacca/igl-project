@@ -30,3 +30,11 @@
 - Click the `Non-Rigid Warping` until the number of closest point constraint converges
 - Click the `Display Template` to see the warping result
 - If you reset threshold or resolution, start again from rigid alignment
+
+---
+
+## alignment update
+
+- smoothed meshes and landmark files in `data/smoothed`
+- mesh namelist saved in `data/smoothed/smoothed_mesh_list` (not include group12)
+- click `Align All Meshes` to process all meshes and save alligned meshes in `data/aligned`

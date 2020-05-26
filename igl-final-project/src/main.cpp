@@ -83,7 +83,7 @@ MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
 // threshold for closest point distance
 double threshold = 1;
 // resolution for uniform grid
-int xres = 30, yres = 50, zres = 50;
+int xres = 50, yres = 50, zres = 50;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
