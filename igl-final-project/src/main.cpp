@@ -210,7 +210,7 @@ void align_and_save_all(const string& datadir, const string& savedir)
     }
 }
 
-int nb_eigenfaces = 3;
+int nb_eigenfaces = 8;
 int nb_faces = nb_eigenfaces;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
@@ -249,6 +249,7 @@ void pca_eigenfaces(const std::vector<Eigen::MatrixXd> faces){
     }
 
     // Computing the mean face
+    std::cout << "Computing the mean face. ";
     mean_face_V = Eigen::MatrixXd::Zero(faces[0].rows(), 3);
     for (int i=0; i<nb_faces; i++){
         mean_face_V = mean_face_V + faces[i];
@@ -257,7 +258,10 @@ void pca_eigenfaces(const std::vector<Eigen::MatrixXd> faces){
 
     std::cout << "Mean Face Calculated!" << std::endl;
 
+    std::cout << "Done.\n";
+
     // Computing the covariance matrix
+    std::cout << "Computing the Covariance Matrix. ";
     MatrixXd C = Eigen::MatrixXd::Zero(faces[0].rows()*3, faces[0].rows()*3); // 3#V * 3#V matrix
 
     mean_face_flatten.setZero(3*mean_face_V.rows());
@@ -283,8 +287,11 @@ void pca_eigenfaces(const std::vector<Eigen::MatrixXd> faces){
 
     std::cout << "Covariance calculated" << std::endl;
 
+    std::cout << "SVD in Progress. ";
     JacobiSVD<MatrixXd> svd(C, ComputeThinU | ComputeThinV);
+    std::cout << "Done.\n";
     auto sv = svd.singularValues();
+    std::cout << "Extracting Eigen Values and Eigen Faces. ";
     eigen_values = VectorXd(nb_eigenfaces);
     for (int i=0; i<nb_eigenfaces; i++){
         eigen_values.row(i) = sv.row(i);
@@ -560,16 +567,16 @@ int main(int argc, char *argv[])
         if (ImGui::Button("Run SVD##Meshes", ImVec2((w-p), 0)))
         {
             std::vector<std::string> files {"../data/aligned_faces_example/example1/fabian-brille.objaligned.obj", 
-            //"../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj",
-            //"../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
-            //"../data/aligned_faces_example/example1/jan-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj",
+            "../data/aligned_faces_example/example1/fabian-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/jan-smile.objaligned.obj",
             "../data/aligned_faces_example/example1/jan-neutral.objaligned.obj",
-            //"../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
-            //"../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
-            //"../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
-            //"../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
-            // "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
-            // "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
+            "../data/aligned_faces_example/example1/jan-brille.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-smile.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-brille.objaligned.obj",
+            "../data/aligned_faces_example/example1/michi-neutral.objaligned.obj",
+            "../data/aligned_faces_example/example1/selina-smile.objaligned.obj",    
+            "../data/aligned_faces_example/example1/selina-neutral.objaligned.obj",  
              "../data/aligned_faces_example/example1/selina-brille.objaligned.obj",
             // "../data/aligned_faces_example/example1/simon-brille.objaligned.obj",    
             // "../data/aligned_faces_example/example1/simon-neutral.objaligned.obj",   
@@ -594,17 +601,24 @@ int main(int argc, char *argv[])
 
     if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Text("Eigenface %d:   Variance Covered: %f", 1, variance_covered[0]);
-        if (ImGui::SliderFloat("1", &eigen_face_weights[0], min_weights[0], max_weights[0]))
-            eigen_face_update();
+        // ImGui::Text("Eigenface %d:   Variance Covered: %f", 1, variance_covered[0]);
+        // if (ImGui::SliderFloat("1", &eigen_face_weights[0], min_weights[0], max_weights[0]))
+        //     eigen_face_update();
 
-        ImGui::Text("Eigenface %d:   Variance Covered: %f", 2, variance_covered[1]);
-        if (ImGui::SliderFloat("2", &eigen_face_weights[1], min_weights[1], max_weights[1]))
-            eigen_face_update();
+        // ImGui::Text("Eigenface %d:   Variance Covered: %f", 2, variance_covered[1]);
+        // if (ImGui::SliderFloat("2", &eigen_face_weights[1], min_weights[1], max_weights[1]))
+        //     eigen_face_update();
 
-        ImGui::Text("Eigenface %d:   Variance Covered: %f",  3, variance_covered[2]);
-        if (ImGui::SliderFloat("3", &eigen_face_weights[2], min_weights[2], max_weights[2]))
-            eigen_face_update();
+        // ImGui::Text("Eigenface %d:   Variance Covered: %f",  3, variance_covered[2]);
+        // if (ImGui::SliderFloat("3", &eigen_face_weights[2], min_weights[2], max_weights[2]))
+        //     eigen_face_update();
+
+        for (int i=0; i<nb_eigenfaces; i++){
+            ImGui::Text("Eigenface %d:   Variance Covered: %f",  i+1, variance_covered[i]);
+            if (ImGui::SliderFloat(std::to_string(i+1).c_str(), &eigen_face_weights[i], min_weights[i], max_weights[i]))
+                eigen_face_update();
+        }
+
     }
 
     if (ImGui::CollapsingHeader("Morphing"), ImGuiTreeNodeFlags_DefaultOpen)
