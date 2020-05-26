@@ -612,13 +612,15 @@ int main(int argc, char *argv[])
         // ImGui::Text("Eigenface %d:   Variance Covered: %f",  3, variance_covered[2]);
         // if (ImGui::SliderFloat("3", &eigen_face_weights[2], min_weights[2], max_weights[2]))
         //     eigen_face_update();
+        // ImGui::Text("Eigenface %d:   Variance Covered: %f", 1, variance_covered[0]);
+        // if (ImGui::SliderFloat("1", &eigen_face_weights[0], min_weights[0], max_weights[0]))
+        //     eigen_face_update();
 
         for (int i=0; i<nb_eigenfaces; i++){
-            ImGui::Text("Eigenface %d:   Variance Covered: %f",  i+1, variance_covered[i]);
+            ImGui::Text("Eigenface %d:   Variance Covered: %f", i+1, variance_covered[i]);
             if (ImGui::SliderFloat(std::to_string(i+1).c_str(), &eigen_face_weights[i], min_weights[i], max_weights[i]))
                 eigen_face_update();
         }
-
     }
 
     if (ImGui::CollapsingHeader("Morphing"), ImGuiTreeNodeFlags_DefaultOpen)
