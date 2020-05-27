@@ -97,10 +97,70 @@ public:
         }       
     }
 
+    double query_xyz(const RowVector3d& P, const MatrixXd& V, int& index, const double threshold) {
+        tuple<int, int, int> xyz = get_grid_index(P);
+        int x = get<0>(xyz);
+        int y = get<1>(xyz);
+        int z = get<2>(xyz);
+        int diff_x = abs(get<0>(xyz) - threshold / dx) + 1;
+        int diff_y = abs(get<1>(xyz) - threshold / dy) + 1;
+        int diff_z = abs(get<2>(xyz) - threshold / dz) + 1;
+        int diff = max(max(diff_x, diff_y), diff_z);
+
+        int delta = 0;
+        bool flag = false;
+        double min_dist = __DBL_MAX__;
+        searched.clear();
+        searched = vector<bool>(2 * xres * yres * zres, false);
+
+        while (delta < diff && !flag) {
+            // 26 neighbourhood
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z);
+            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x, y, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x, y, z+delta);
+
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z+delta);
+
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z+delta);
+
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z+delta);
+            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z-delta);
+            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z-delta);
+
+            delta++;
+        }
+
+        if (min_dist == __DBL_MAX__) {
+            return -1;
+        } else {
+            return min_dist;
+        }
+    }
+
 private:
 
     // store all the point indices of V in each grid
     unordered_map<int, vector<int>> p_in_grid;
+
+    vector<bool> searched;
 
     inline int to_idx(const int x, const int y, const int z) {
         return x + xres * (y + yres * z);
@@ -121,6 +181,27 @@ private:
         int idx_z = floor((diff[2] + offset_z) / dz);
 
         return make_tuple(idx_x, idx_y, idx_z);
+    }
+
+    inline void closest_in_grid(const RowVector3d& P, const MatrixXd& V, int& index,
+                                double& min_dist, bool& flag,
+                                int x, int y, int z) {
+        if (!isValid(x, y, z)) return;
+        int idx = to_idx(x, y, z);
+        if (searched[idx]) return;
+        searched[idx] = true;
+        for (int p : p_in_grid[idx]) {
+            double cur_dist = (P - V.row(p)).norm();
+            if (cur_dist < min_dist) {
+                min_dist = cur_dist;
+                index = p;
+                flag = true;
+            }
+        }
+    }
+
+    inline bool isValid(int x, int y, int z) {
+        return 0 <= x && x < xres && 0 <= y && y <= yres && 0 <= z && z <= zres;
     }
 };
 

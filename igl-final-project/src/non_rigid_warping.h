@@ -91,7 +91,7 @@ int non_rigid_warping(MatrixXd& V_temp,
 
         if (existing_constraints.find(i) != existing_constraints.end()) continue;
 
-        double dist = ug.query(V_temp.row(i), V, idx, threshold);
+        double dist = ug.query_xyz(V_temp.row(i), V, idx, threshold);
 
         if (dist < threshold && dist != -1) {
             if (clst_constraints.find(idx) != clst_constraints.end()) continue;
