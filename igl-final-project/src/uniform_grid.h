@@ -15,6 +15,8 @@ public:
     double dx, dy, dz; // grid spacing
     double offset_x, offset_y, offset_z; // offset after enlarging bounding box
 
+    UniformGrid() {}
+
     UniformGrid(const RowVector3d& bb_min, const RowVector3d& bb_max,
                 const int xres, const int yres, const int zres) 
                 : bb_min(bb_min), bb_max(bb_max), 
@@ -47,7 +49,9 @@ public:
         }
     }
 
-    // find closest point of P in V, save the index and return the distance
+    // find closest vertex of P in V, save the index and return the distance
+    // only search in the y direction since it's orthogonal to the face plane
+    // not really using it in the final code
     double query(const RowVector3d& P, const MatrixXd& V, int& index, const double threshold) {
 
         // grid index of the query point
@@ -59,35 +63,14 @@ public:
         // if points exist in closer grids, flag = true
         bool flag = false;
 
-        // only search in the y direction since it's orthogonal to the face plane
-        int idx = 0, y = 0;
         double min_dist = __DBL_MAX__;
         for (int i=0; i<=diff && !flag; i++) {
+            searched.clear();
+            searched = vector<bool>(2 * xres * yres * zres, false);
             // front
-            y = max(0, get<1>(xyz) - i);
-            idx = to_idx(get<0>(xyz), y, get<2>(xyz));
-            for (int p : p_in_grid[idx]) {
-                double cur_dist = (P - V.row(p)).norm();
-                if (cur_dist < min_dist) {
-                    min_dist = cur_dist;
-                    index = p;
-                    flag = true;
-                }
-            }
-
-            // back 
-            if (i != 0) { // avoid repetition
-                y = min(yres-1, get<1>(xyz) + i);
-                idx = to_idx(get<0>(xyz), y, get<2>(xyz));
-                for (int p : p_in_grid[idx]) {
-                    double cur_dist = (P - V.row(p)).norm();
-                    if (cur_dist < min_dist) {
-                        min_dist = cur_dist;
-                        index = p;
-                        flag = true;
-                    }
-                }
-            }
+            closest_in_grid(P, V, index, min_dist, flag, get<0>(xyz), get<1>(xyz) - i, get<2>(xyz));
+            // back
+            closest_in_grid(P, V, index, min_dist, flag, get<0>(xyz), get<1>(xyz) + i, get<2>(xyz));
         }
 
         if (min_dist == __DBL_MAX__) {
@@ -97,23 +80,30 @@ public:
         }       
     }
 
+    // find closest vertex of P in V, save the index and return the distance
+    // search all xyz directions
     double query_xyz(const RowVector3d& P, const MatrixXd& V, int& index, const double threshold) {
+        
+        // grid index of the query point
         tuple<int, int, int> xyz = get_grid_index(P);
-        // int x = get<0>(xyz);
-        // int y = get<1>(xyz);
-        // int z = get<2>(xyz);
+
+        // the max number of grids we need to search along each direction
         int diff_x = abs(get<0>(xyz) - threshold / dx) + 1;
         int diff_y = abs(get<1>(xyz) - threshold / dy) + 1;
         int diff_z = abs(get<2>(xyz) - threshold / dz) + 1;
         int diff = max(max(diff_x, diff_y), diff_z);
 
-        int delta = 0;
-        bool flag = false;
-        double min_dist = __DBL_MAX__;
         searched.clear();
         searched = vector<bool>(2 * xres * yres * zres, false);
+        
+        // for early break
+        // terminate the search if vertices exist in inner "layers" of the grids
+        bool flag = false; 
+        
+        int delta = 0;
+        double min_dist = __DBL_MAX__;
 
-        while (delta < diff && !flag) {
+        while (delta++ <= diff && !flag) {
             for (int x=get<0>(xyz)-delta; x<=get<0>(xyz)+delta; x++) {
                 for (int y=get<1>(xyz)-delta; y<=get<1>(xyz)+delta; y++) {
                     for (int z=get<2>(xyz)-delta; z<=get<2>(xyz)+delta; z++) {
@@ -121,38 +111,6 @@ public:
                     }
                 }
             }
-            // 26 neighbourhood
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y, z+delta);
-
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z+delta);
-
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z+delta);
-
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z+delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z-delta);
-            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z-delta);
-
-            delta++;
         }
 
         if (min_dist == __DBL_MAX__) {
@@ -164,9 +122,10 @@ public:
 
 private:
 
-    // store all the point indices of V in each grid
+    // store all the vertex indices of V in each grid
     unordered_map<int, vector<int>> p_in_grid;
 
+    // record whether a grid has been searched for the query vertex
     vector<bool> searched;
 
     inline int to_idx(const int x, const int y, const int z) {
@@ -207,8 +166,9 @@ private:
         }
     }
 
+    // whether the given indices are legal, i.e., 0 <= idx < res
     inline bool isValid(int x, int y, int z) {
-        return 0 <= x && x < xres && 0 <= y && y <= yres && 0 <= z && z <= zres;
+        return 0 <= x && x < xres && 0 <= y && y < yres && 0 <= z && z < zres;
     }
 };
 

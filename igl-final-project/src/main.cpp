@@ -81,14 +81,16 @@ Eigen::MatrixXi F_temp(0,3);
 VectorXi landmarks, landmarks_temp;
 MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
 // threshold for closest point distance
-double threshold = 1;
+double threshold = 0.3;
 // resolution for uniform grid
 int xres = 50, yres = 50, zres = 50;
+// flag to record if we already run non_rigid_prepare when demo
+bool demo_init = false;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
 
-// read landmark from file
+// read landmarks from file
 void read_landmarks(VectorXi& landmarks, const string& filename)
 {
     landmarks.resize(MAX_NUM_LANDMARK);
@@ -103,6 +105,7 @@ void read_landmarks(VectorXi& landmarks, const string& filename)
     landmarks.conservativeResize(cnt);
 }
 
+// write landmarks to file
 void write_landmarks(const char* filename) {
     ofstream fout(filename);
     for (int i = 0; i < handle_vertices.rows(); i++) {
@@ -111,6 +114,7 @@ void write_landmarks(const char* filename) {
     fout.close();
 }
 
+// load mesh name list to vector
 inline void set_vec_from_file(vector<string>& v, const string& filename)
 {
     fstream fin(filename);
@@ -172,6 +176,52 @@ void rigid_alignment(const string& objfile, const string& lmfile)
 
 }
 
+void non_rigid_prepare(unordered_set<int>& existing_constraints,
+                        unordered_set<int>& clst_constraints,
+                        VectorXi& prior_constraints,
+                        MatrixXd& prior_constraint_positions)
+{
+
+    // store indices for landmarks and boundary points (indices in V_temp)
+    // skip these points when adding closest point constraints
+    VectorXi boundary_vertex_indices;
+    MatrixXd boundary_vertex_positions;
+    igl::boundary_loop(F_temp, boundary_vertex_indices);
+    igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
+    for (int i=0; i<landmarks_temp.rows(); i++) 
+        existing_constraints.insert(landmarks_temp(i));
+    for (int i=0; i<boundary_vertex_indices.rows(); i++) 
+        existing_constraints.insert(boundary_vertex_indices(i));
+
+    // store indices for landmarks and boundary points (indices in V)
+    // so that other points won't be attached to these points
+    VectorXi mesh_boundary;
+    igl::boundary_loop(F, mesh_boundary);
+
+    vector<vector<int>> VV;
+    igl::adjacency_list(F, VV);
+
+    for (int i=0; i<mesh_boundary.rows(); i++) {
+        clst_constraints.insert(mesh_boundary(i));
+    }
+
+    // include also neighbors of the boundary points
+    // range can be tuned by bfs_depth
+    int bfs_depth = 8;
+    while(bfs_depth-- >= 0) {
+        for (int i : clst_constraints)
+            for (int neighbor : VV[i])
+                clst_constraints.insert(neighbor);
+    }
+
+    for (int i=0; i<landmarks.rows(); i++) 
+        clst_constraints.insert(landmarks(i));
+    
+    igl::cat(1, landmarks_temp, boundary_vertex_indices, prior_constraints);
+    igl::cat(1, landmark_positions, boundary_vertex_positions, prior_constraint_positions);
+}
+
+// process all the meshes
 void align_and_save_all(const string& datadir, const string& savedir)
 {
     vector<string> mesh_list;
@@ -188,72 +238,37 @@ void align_and_save_all(const string& datadir, const string& savedir)
         rigid_alignment(objfile, lmfile);
         cout << "rigid alignment done\n";
 
-        VectorXi v;
-        igl::boundary_loop(F, v);
-
+        // merge rigidly aligned template and target to get bounding box
         MatrixXd V_total(V.rows() + V_temp.rows(), 3);
         MatrixXi F_total(F.rows() + F_temp.rows(), 3);
         V_total << V, V_temp;
         F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
-
-        // prepare uniform grid
         RowVector3d bb_min = V_total.colwise().minCoeff();
         RowVector3d bb_max = V_total.colwise().maxCoeff();
-        UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
+
+        // prepare uniform grid
+        UniformGrid ug(bb_min, bb_max, xres, yres, zres);
         ug.init_grid(V);
 
-        VectorXi boundary_vertex_indices;
-        MatrixXd boundary_vertex_positions;
-        igl::boundary_loop(F_temp, boundary_vertex_indices);
-        igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
-
-        // store indices for landmarks and boundary points (indices in V_temp)
-        // skip these points when adding closest point constraints
         unordered_set<int> existing_constraints;
-        for (int i=0; i<landmarks_temp.rows(); i++) 
-            existing_constraints.insert(landmarks_temp(i));
-        for (int i=0; i<boundary_vertex_indices.rows(); i++) 
-            existing_constraints.insert(boundary_vertex_indices(i));
-        // *******************************************************************************
-
-        // store indices for landmarks and boundary points (indices in V)
-        // don't attach other points to these points
         unordered_set<int> clst_constraints;
-        vector<vector<int>> VV;
-        igl::adjacency_list(F, VV);
-        for (int i=0; i<v.rows(); i++) {
-            clst_constraints.insert(v(i));
-        }
-
-        int bfs_depth = 8;
-        while(bfs_depth-- >= 0) {
-            for (int i : clst_constraints)
-                for (int neighbor : VV[i])
-                    clst_constraints.insert(neighbor);
-        }
-
-        for (int i=0; i<landmarks.rows(); i++) 
-            clst_constraints.insert(landmarks(i));
-        
-        VectorXi all_constraints_;
-        MatrixXd all_constraint_positions_;
-        igl::cat(1, landmarks_temp, boundary_vertex_indices, all_constraints_);
-        igl::cat(1, landmark_positions, boundary_vertex_positions, all_constraint_positions_);
+        VectorXi prior_constraints;
+        MatrixXd prior_constraint_positions;
+        non_rigid_prepare(existing_constraints, clst_constraints, prior_constraints, prior_constraint_positions);
 
         int pre = 0;
         threshold = 0.1;
         while (threshold < 5) {
-            int cur = non_rigid_warping(all_constraints_, all_constraint_positions_,
-                                        existing_constraints, clst_constraints, V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
-            if(pre == cur && cur > 1300) break;
-            threshold += 0.1;
+            int cur = non_rigid_warping(prior_constraints, prior_constraint_positions,
+                                        existing_constraints, clst_constraints, 
+                                        V_temp, F_temp, V, ug, threshold);
+            
+            // #clst_point_constraints converges && enough points are closest to target mesh
+            if(pre == cur && cur > 1500) break;
+            threshold += 0.1; // dynamicly change threshold
             pre = cur;
         }
-        for (int i=0; i<boundary_vertex_indices.rows(); i++) 
-            existing_constraints.erase(boundary_vertex_indices(i));
-        for (int i=0; i<10; i++) 
-        non_rigid_warping(landmarks_temp, landmark_positions,
-                            existing_constraints, clst_constraints, V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+
         cout << "warping converge at " << pre << " closest point constraints" << endl;
         cout << "threshold " << threshold << endl;
         igl::write_triangle_mesh(savedir + mesh_list[i] + string(".obj"), V_temp, F_temp);
@@ -731,23 +746,35 @@ int main(int argc, char *argv[])
                 F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
                 viewer.data().clear();
                 viewer.data().set_mesh(V_total, F_total);
+
+                threshold = 0.3;
             }
 
             if (ImGui::Button("Non-Rigid Warping", ImVec2(-1,0)))
             {
-                // aligned results (V_total, F_total)
+                
                 MatrixXd V_total(V.rows() + V_temp.rows(), 3);
                 MatrixXi F_total(F.rows() + F_temp.rows(), 3);
                 V_total << V, V_temp;
                 F_total << F, F_temp + MatrixXi::Constant(F_temp.rows(), 3, V.rows());
-
-                // prepare uniform grid
                 RowVector3d bb_min = V_total.colwise().minCoeff();
                 RowVector3d bb_max = V_total.colwise().maxCoeff();
-                UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
+                
+                UniformGrid ug(bb_min, bb_max, xres, yres, zres);
                 ug.init_grid(V);
 
-                // non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+                unordered_set<int> existing_constraints;
+                unordered_set<int> clst_constraints;
+                VectorXi prior_constraints;
+                MatrixXd prior_constraint_positions;
+                non_rigid_prepare(existing_constraints, clst_constraints, 
+                                prior_constraints, prior_constraint_positions);
+
+                non_rigid_warping(prior_constraints, prior_constraint_positions,
+                                existing_constraints, clst_constraints, 
+                                V_temp, F_temp, V, ug, threshold);
+                
+                threshold += 0.3;
 
                 viewer.data().clear();
                 viewer.data().set_mesh(V_total, F_total);

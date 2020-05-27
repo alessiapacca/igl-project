@@ -10,6 +10,10 @@
 using namespace std;
 using namespace Eigen;
 
+// 3 types of constraints
+// (1) landmarks
+// (2) boundary points
+// (3) points that are close enough to target face
 void ConvertConstraintsToMatrixForm(MatrixXd V,
                                     VectorXi indices,
                                     MatrixXd positions,
@@ -35,19 +39,35 @@ void ConvertConstraintsToMatrixForm(MatrixXd V,
 }
 
 
-// 16/05: still some artifacts, especially around nostrils and eyebrows
-int non_rigid_warping(VectorXi all_constraints_,
-    MatrixXd all_constraint_positions_,
-    unordered_set<int> existing_constraints, 
-                        unordered_set<int> clst_constraints, 
-                        MatrixXd& V_temp,
-					   const MatrixXi& F_temp, 
-                       const VectorXi& landmarks,
-					   const VectorXi& landmarks_temp,
-					   const MatrixXd& landmark_positions,
-                       const MatrixXd& V,
-                       UniformGrid& ug,
-                       const double threshold) {
+int non_rigid_warping(const VectorXi& prior_constraints,
+                    const MatrixXd& prior_constraint_positions,
+                    unordered_set<int> existing_constraints, 
+                    unordered_set<int> clst_constraints, 
+                    MatrixXd& V_temp,
+                    const MatrixXi& F_temp, 
+                    const MatrixXd& V,
+                    UniformGrid& ug,
+                    const double threshold) {
+    
+    // ********************************
+    // INPUT
+    // prior_constraints: indices of boundary vertices and landmarks of the template
+    // prior_constraint_positions: coordinates of boundary vertices and landmarks of the template
+    // existing_constraints: indices of boundary vertices and landmarks of the template,
+    //                       skip these points when adding closest point constraints
+    //                       use unordered_set for faster search
+    // clst_constraints: indices of the scanned mesh vertices,
+    //                   which are already closest points of other template vertices,
+    //                   avoid fixing multiple vertices to the same position
+    // (V_temp, F_temp): template mesh
+    // ug: uniform grid data structure initialized with the target mesh
+    // threshold: threshold distance for including a vertex as a constraint
+    // 
+    // OUTPUT
+    // number of vertices that satisfy closest point condition
+    // (i.e., distance to its closest point within threshold)
+    // ********************************
+
     VectorXi f;
     SparseMatrix<double> L, A, c;
     VectorXd x_prime, b(V_temp.rows() * 3), d;
@@ -59,47 +79,9 @@ int non_rigid_warping(VectorXi all_constraints_,
 
     igl::repdiag(L, 3, A);
 
-    // 3 types of constraints
-    // (1) landmarks
-    // (2) boundary points
-    // (3) points that are close enough to target face
-
-    // ***** can be moved out of this funciton to avoid redundant computation *****
-    // get boundary points constraint
-    // VectorXi boundary_vertex_indices;
-    // MatrixXd boundary_vertex_positions;
-    // igl::boundary_loop(F_temp, boundary_vertex_indices);
-    // igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
-
-    // // store indices for landmarks and boundary points (indices in V_temp)
-    // // skip these points when adding closest point constraints
-    // unordered_set<int> existing_constraints;
-    // for (int i=0; i<landmarks_temp.rows(); i++) 
-    //     existing_constraints.insert(landmarks_temp(i));
-    // for (int i=0; i<boundary_vertex_indices.rows(); i++) 
-    //     existing_constraints.insert(boundary_vertex_indices(i));
-    // // *******************************************************************************
-
-    // // store indices for landmarks and boundary points (indices in V)
-    // // don't attach other points to these points
-    // unordered_set<int> clst_constraints;
-    // for (int i=0; i<landmarks.rows(); i++) 
-    //     clst_constraints.insert(landmarks(i));
-
-    // vector<vector<int>> VV;
-    // igl::adjacency_list(F, VV);
-    // for (int i=0; i<v.rows(); i++) {
-    //     clst_constraints.insert(v(i));
-    //     for (int neighbor : VV[v[i]])
-    //         clst_constraints.insert(neighbor);
-    // }
-    
-    
-
     VectorXi closest_vertex_indices(V_temp.rows());
     MatrixXd closest_vertex_positions(V_temp.rows(), 3);
 
-    // TODO: find appropiate threshold
     int idx;
     int cnt = 0;
     for (int i = 0; i < V_temp.rows(); i++) {
@@ -124,8 +106,8 @@ int non_rigid_warping(VectorXi all_constraints_,
 
     VectorXi all_constraints;
     MatrixXd all_constraint_positions;
-    igl::cat(1, closest_vertex_indices, all_constraints_, all_constraints);
-    igl::cat(1, closest_vertex_positions, all_constraint_positions_, all_constraint_positions);
+    igl::cat(1, closest_vertex_indices, prior_constraints, all_constraints);
+    igl::cat(1, closest_vertex_positions, prior_constraint_positions, all_constraint_positions);
 
     ConvertConstraintsToMatrixForm(V_temp, all_constraints, all_constraint_positions, c, d);
 
@@ -150,9 +132,6 @@ int non_rigid_warping(VectorXi all_constraints_,
     if (solver.info() != Eigen::Success) {
         cout << "SparseLU Failed!" << endl;
     } 
-    // else {
-    //     cout << "SparseLU Succeeded!" << endl;
-    // }
 
     x_prime = solver.solve(RHS);
 
