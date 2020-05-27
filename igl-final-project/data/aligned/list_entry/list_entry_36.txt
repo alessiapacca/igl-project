@@ -34,4 +34,3 @@
 ../data/aligned/simonh_smile_corrected.obj
 ../data/aligned/simon-smile.obj
 ../data/aligned/simonw_neutral_corrected.obj
-../data/aligned/
