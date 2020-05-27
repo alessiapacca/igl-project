@@ -1,0 +1,6 @@
+../data/aligned_faces_example/example3/ali_neutral_corrected_warped.obj
+../data/aligned_faces_example/example3/ali_smile_corrected_warped.obj
+../data/aligned_faces_example/example3/arda_neutral_corrected_warped.obj
+../data/aligned_faces_example/example3/arda_smile_corrected_warped.obj
+../data/aligned_faces_example/example3/christian_neutral_corrected_warped.obj
+../data/aligned_faces_example/example3/christian_smile_corrected_warped.obj
