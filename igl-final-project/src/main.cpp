@@ -212,7 +212,7 @@ void align_and_save_all(const string& datadir, const string& savedir)
     }
 }
 
-int nb_eigenfaces = 6;
+int nb_eigenfaces = 8;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
@@ -527,6 +527,8 @@ void load_results_svd(std::string root="./results_eigenfaces/"){
     nb_eigenfaces = std::stoi(line);
     std::cout << "Number of Eigenfaces: " << nb_eigenfaces << std::endl;
 
+    eigen_face_weights = std::vector<float>(nb_eigenfaces, 0.0);
+
     eigen_values = VectorXd::Zero(nb_eigenfaces);
     min_weights = std::vector<double>(nb_eigenfaces, 0.0);
     max_weights = std::vector<double>(nb_eigenfaces, 0.0);
@@ -787,11 +789,22 @@ int main(int argc, char *argv[])
         float p = ImGui::GetStyle().FramePadding.x;
         if (ImGui::Button("Save Results##Saving", ImVec2((w-p), 0))){
             save_results_svd();
-            std::cout << "Results Saved\n";
+            std::cout << "Results Saved in ./results_eigenfaces.\n";
         }
 
         if (ImGui::Button("Load SVD Results##Saving", ImVec2((w-p), 0))){
-            load_results_svd();
+            std::string list_file = igl::file_dialog_open();
+            if(list_file.length() == 0)
+                std::cout << "Please select a list of the entry files for loading the SVD results.\n";
+            else{
+                std::ifstream ifs_list_file(list_file);
+                string folder;
+                if (ifs_list_file.is_open()){
+                    std::getline(ifs_list_file, folder);
+                }
+                ifs_list_file.close();
+                load_results_svd(folder);
+            }
         }
     }
 
