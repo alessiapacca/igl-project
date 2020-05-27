@@ -1,0 +1,9 @@
+../data/aligned/alain_normal.obj
+../data/aligned/alain_smile.obj
+../data/aligned/alex_neutral.obj
+../data/aligned/alex_smile.obj
+../data/aligned/alex_wacky.obj
+../data/aligned/ali_neutral_corrected.obj
+../data/aligned/ali_smile_corrected.obj
+../data/aligned/arda_neutral_corrected.obj
+../data/aligned/arda_smile_corrected.obj

@@ -212,7 +212,7 @@ void align_and_save_all(const string& datadir, const string& savedir)
     }
 }
 
-int nb_eigenfaces = 12;
+int nb_eigenfaces = 6;
 Eigen::MatrixXd mean_face_V;
 Eigen::MatrixXi mean_face_F;
 std::vector<Eigen::MatrixXd> eigen_faces;
