@@ -200,9 +200,11 @@ void align_and_save_all(const string& datadir, const string& savedir)
         ug.init_grid(V);
 
         int pre = 0;
+        threshold = 0.1;
         while (1) {
             int cur = non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
-            if(pre == cur) break;
+            if(pre == cur && cur > 1500) break;
+            threshold += 1;
             pre = cur;
         }
         cout << "non rigid warping converge at " << pre << " closest point constraints" << endl;

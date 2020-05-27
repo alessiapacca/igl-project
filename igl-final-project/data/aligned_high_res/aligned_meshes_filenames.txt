@@ -1,0 +1,99 @@
+alain_normal.obj
+alain_smile.obj
+alex_neutral.obj
+alex_smile.obj
+alex_wacky.obj
+ali_neutral_corrected.obj
+ali_smile_corrected.obj
+arda_neutral_corrected.obj
+arda_smile_corrected.obj
+bjarni_neutral.obj
+bjarni_smile.obj
+chrisk_neutral.obj
+chrisk_neutral2.obj
+chrisk_smile.obj
+chriss_glasses.obj
+chriss_neutral.obj
+chriss_smile.obj
+christian_neutral_corrected.obj
+christian_smile_corrected.obj
+daniel_normal.obj
+daniel_smile.obj
+dingguang_normal.obj
+dingguang_smile.obj
+fabian-brille.obj
+fabian-neutral.obj
+fabian-smile.obj
+felix neutral smoothed.obj
+felix smile smoothed.obj
+felix wacky smoothed.obj
+gleb_neutral.obj
+gleb_smile.obj
+ho_neutral.obj
+ho_smile.obj
+jan-brille.obj
+jan-neutral.obj
+jan-smile.obj
+julian_normal.obj
+julian_smile.obj
+karlis_neutral_corrected.obj
+karlis_smile_corrected.obj
+krispin_normal.obj
+krispin_smile.obj
+lea_neutral.obj
+lea_smile.obj
+livio-neutral.obj
+livio-smile.obj
+mark neutral snoothed.obj
+mark smile smoothed.obj
+mark wacky smoothed.obj
+markus_normal.obj
+markus_smile.obj
+michael_normal.obj
+michael_smile.obj
+michi-brille.obj
+michi-neutral.obj
+michi-smile.obj
+moyuan_duckface.obj
+moyuan_neutral.obj
+nici-brille.obj
+nici-neutral.obj
+nici-smile.obj
+nick smile.obj
+nick wacky.obj
+nick-neutral.obj
+nihat neutral.obj
+nihat smile.obj
+nihat wacky.obj
+patrick_neutral_corrected.obj
+patrick_smile_corrected.obj
+person1_normal.obj
+person1_smile.obj
+person2_normal.obj
+person2_smile.obj
+person3_normal.obj
+person3_smile.obj
+person4_normal.obj
+person4_smile.obj
+person5_normal.obj
+person5_smile.obj
+person6_normal.obj
+person6_smile.obj
+pietro_normal.obj
+pietro_smile.obj
+qais_neutral_corrected.obj
+qais_smile_corrected.obj
+ryan neutral smoothed.obj
+ryan smiloe smoothed.obj
+selina-brille.obj
+selina-neutral.obj
+selina-smile.obj
+shanshan_neutral_corrected.obj
+shanshan_smile_corrected.obj
+simon-brille.obj
+simon-neutral.obj
+simon-smile.obj
+simonh_neutral_corrected.obj
+simonh_smile_corrected.obj
+simonw_neutral_corrected.obj
+simonw_smile_corrected.obj
