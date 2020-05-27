@@ -2,6 +2,7 @@
 #include <igl/cotmatrix.h>
 #include <igl/repdiag.h>
 #include <igl/boundary_loop.h>
+#include <igl/adjacency_list.h>
 #include "uniform_grid.h"
 
 #include <unordered_set>
@@ -35,7 +36,11 @@ void ConvertConstraintsToMatrixForm(MatrixXd V,
 
 
 // 16/05: still some artifacts, especially around nostrils and eyebrows
-int non_rigid_warping(MatrixXd& V_temp,
+int non_rigid_warping(VectorXi all_constraints_,
+    MatrixXd all_constraint_positions_,
+    unordered_set<int> existing_constraints, 
+                        unordered_set<int> clst_constraints, 
+                        MatrixXd& V_temp,
 					   const MatrixXi& F_temp, 
                        const VectorXi& landmarks,
 					   const VectorXi& landmarks_temp,
@@ -61,25 +66,35 @@ int non_rigid_warping(MatrixXd& V_temp,
 
     // ***** can be moved out of this funciton to avoid redundant computation *****
     // get boundary points constraint
-    VectorXi boundary_vertex_indices;
-    MatrixXd boundary_vertex_positions;
-    igl::boundary_loop(F_temp, boundary_vertex_indices);
-    igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
+    // VectorXi boundary_vertex_indices;
+    // MatrixXd boundary_vertex_positions;
+    // igl::boundary_loop(F_temp, boundary_vertex_indices);
+    // igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
 
-    // store indices for landmarks and boundary points (indices in V_temp)
-    // skip these points when adding closest point constraints
-    unordered_set<int> existing_constraints;
-    for (int i=0; i<landmarks_temp.rows(); i++) 
-        existing_constraints.insert(landmarks_temp(i));
-    for (int i=0; i<boundary_vertex_indices.rows(); i++) 
-        existing_constraints.insert(boundary_vertex_indices(i));
-    // *******************************************************************************
+    // // store indices for landmarks and boundary points (indices in V_temp)
+    // // skip these points when adding closest point constraints
+    // unordered_set<int> existing_constraints;
+    // for (int i=0; i<landmarks_temp.rows(); i++) 
+    //     existing_constraints.insert(landmarks_temp(i));
+    // for (int i=0; i<boundary_vertex_indices.rows(); i++) 
+    //     existing_constraints.insert(boundary_vertex_indices(i));
+    // // *******************************************************************************
 
-    // store indices for landmarks and boundary points (indices in V)
-    // don't attach other points to these points
-    unordered_set<int> clst_constraints;
-    for (int i=0; i<landmarks.rows(); i++) 
-        clst_constraints.insert(landmarks(i));
+    // // store indices for landmarks and boundary points (indices in V)
+    // // don't attach other points to these points
+    // unordered_set<int> clst_constraints;
+    // for (int i=0; i<landmarks.rows(); i++) 
+    //     clst_constraints.insert(landmarks(i));
+
+    // vector<vector<int>> VV;
+    // igl::adjacency_list(F, VV);
+    // for (int i=0; i<v.rows(); i++) {
+    //     clst_constraints.insert(v(i));
+    //     for (int neighbor : VV[v[i]])
+    //         clst_constraints.insert(neighbor);
+    // }
+    
+    
 
     VectorXi closest_vertex_indices(V_temp.rows());
     MatrixXd closest_vertex_positions(V_temp.rows(), 3);
@@ -107,12 +122,10 @@ int non_rigid_warping(MatrixXd& V_temp,
 
     // cout << "#closest point constraint " << closest_vertex_indices.rows() << endl;
 
-    VectorXi all_constraints, all_constraints_;
-    MatrixXd all_constraint_positions, all_constraint_positions_;
-    igl::cat(1, closest_vertex_indices, boundary_vertex_indices, all_constraints_);
-    igl::cat(1, all_constraints_, landmarks_temp, all_constraints);
-    igl::cat(1, closest_vertex_positions, boundary_vertex_positions, all_constraint_positions_);
-    igl::cat(1, all_constraint_positions_, landmark_positions, all_constraint_positions);
+    VectorXi all_constraints;
+    MatrixXd all_constraint_positions;
+    igl::cat(1, closest_vertex_indices, all_constraints_, all_constraints);
+    igl::cat(1, closest_vertex_positions, all_constraint_positions_, all_constraint_positions);
 
     ConvertConstraintsToMatrixForm(V_temp, all_constraints, all_constraint_positions, c, d);
 

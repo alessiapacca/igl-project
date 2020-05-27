@@ -99,9 +99,9 @@ public:
 
     double query_xyz(const RowVector3d& P, const MatrixXd& V, int& index, const double threshold) {
         tuple<int, int, int> xyz = get_grid_index(P);
-        int x = get<0>(xyz);
-        int y = get<1>(xyz);
-        int z = get<2>(xyz);
+        // int x = get<0>(xyz);
+        // int y = get<1>(xyz);
+        // int z = get<2>(xyz);
         int diff_x = abs(get<0>(xyz) - threshold / dx) + 1;
         int diff_y = abs(get<1>(xyz) - threshold / dy) + 1;
         int diff_z = abs(get<2>(xyz) - threshold / dz) + 1;
@@ -114,36 +114,43 @@ public:
         searched = vector<bool>(2 * xres * yres * zres, false);
 
         while (delta < diff && !flag) {
+            for (int x=get<0>(xyz)-delta; x<=get<0>(xyz)+delta; x++) {
+                for (int y=get<1>(xyz)-delta; y<=get<1>(xyz)+delta; y++) {
+                    for (int z=get<2>(xyz)-delta; z<=get<2>(xyz)+delta; z++) {
+                        closest_in_grid(P, V, index, min_dist, flag, x, y, z);
+                    }
+                }
+            }
             // 26 neighbourhood
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z);
-            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x, y, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x, y, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y, z+delta);
 
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z+delta);
 
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y+delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x, y-delta, z+delta);
 
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z+delta);
-            closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z-delta);
-            closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y+delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y-delta, z+delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x-delta, y+delta, z-delta);
+            // closest_in_grid(P, V, index, min_dist, flag, x+delta, y-delta, z-delta);
 
             delta++;
         }

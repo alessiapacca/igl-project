@@ -134,8 +134,8 @@ void rigid_alignment(const string& objfile, const string& lmfile)
     igl::slice(V, landmarks, 1, landmark_positions);
 
     // load template
-    igl::read_triangle_mesh("../data/face_template/headtemplate_noneck.obj",V_temp,F_temp);    
-    read_landmarks(landmarks_temp, "../data/headtemplate_noneck_landmarks.txt");
+    igl::read_triangle_mesh("../data/face_template/headtemplate_noneck_lesshead_4k.obj",V_temp,F_temp);    
+    read_landmarks(landmarks_temp, "../data/face_template/headtemplate_4k_landmarks.txt");
     igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
 
     // center template at (0,0,0)
@@ -188,6 +188,9 @@ void align_and_save_all(const string& datadir, const string& savedir)
         rigid_alignment(objfile, lmfile);
         cout << "rigid alignment done\n";
 
+        VectorXi v;
+        igl::boundary_loop(F, v);
+
         MatrixXd V_total(V.rows() + V_temp.rows(), 3);
         MatrixXi F_total(F.rows() + F_temp.rows(), 3);
         V_total << V, V_temp;
@@ -199,15 +202,60 @@ void align_and_save_all(const string& datadir, const string& savedir)
         UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
         ug.init_grid(V);
 
+        VectorXi boundary_vertex_indices;
+        MatrixXd boundary_vertex_positions;
+        igl::boundary_loop(F_temp, boundary_vertex_indices);
+        igl::slice(V_temp, boundary_vertex_indices, 1, boundary_vertex_positions);
+
+        // store indices for landmarks and boundary points (indices in V_temp)
+        // skip these points when adding closest point constraints
+        unordered_set<int> existing_constraints;
+        for (int i=0; i<landmarks_temp.rows(); i++) 
+            existing_constraints.insert(landmarks_temp(i));
+        for (int i=0; i<boundary_vertex_indices.rows(); i++) 
+            existing_constraints.insert(boundary_vertex_indices(i));
+        // *******************************************************************************
+
+        // store indices for landmarks and boundary points (indices in V)
+        // don't attach other points to these points
+        unordered_set<int> clst_constraints;
+        vector<vector<int>> VV;
+        igl::adjacency_list(F, VV);
+        for (int i=0; i<v.rows(); i++) {
+            clst_constraints.insert(v(i));
+        }
+
+        int bfs_depth = 8;
+        while(bfs_depth-- >= 0) {
+            for (int i : clst_constraints)
+                for (int neighbor : VV[i])
+                    clst_constraints.insert(neighbor);
+        }
+
+        for (int i=0; i<landmarks.rows(); i++) 
+            clst_constraints.insert(landmarks(i));
+        
+        VectorXi all_constraints_;
+        MatrixXd all_constraint_positions_;
+        igl::cat(1, landmarks_temp, boundary_vertex_indices, all_constraints_);
+        igl::cat(1, landmark_positions, boundary_vertex_positions, all_constraint_positions_);
+
         int pre = 0;
         threshold = 0.1;
-        while (1) {
-            int cur = non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
-            if(pre == cur && cur > 1500) break;
-            threshold += 1;
+        while (threshold < 5) {
+            int cur = non_rigid_warping(all_constraints_, all_constraint_positions_,
+                                        existing_constraints, clst_constraints, V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+            if(pre == cur && cur > 1300) break;
+            threshold += 0.1;
             pre = cur;
         }
-        cout << "non rigid warping converge at " << pre << " closest point constraints" << endl;
+        for (int i=0; i<boundary_vertex_indices.rows(); i++) 
+            existing_constraints.erase(boundary_vertex_indices(i));
+        for (int i=0; i<10; i++) 
+        non_rigid_warping(landmarks_temp, landmark_positions,
+                            existing_constraints, clst_constraints, V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+        cout << "warping converge at " << pre << " closest point constraints" << endl;
+        cout << "threshold " << threshold << endl;
         igl::write_triangle_mesh(savedir + mesh_list[i] + string(".obj"), V_temp, F_temp);
     }
 }
@@ -673,8 +721,8 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Rigid Alignment", ImVec2(-1,0)))
             {
-                rigid_alignment(string("../data/smoothed/alain_normal.obj"),
-                                string("../data/smoothed/alain_normal.txt"));
+                rigid_alignment(string("../data/smoothed/krispin_normal.obj"),
+                                string("../data/smoothed/krispin_normal.txt"));
                 MatrixXd V_total(V.rows() + V_temp.rows(), 3);
                 MatrixXi F_total(F.rows() + F_temp.rows(), 3);
                 V_total << V, V_temp;
@@ -697,7 +745,7 @@ int main(int argc, char *argv[])
                 UniformGrid ug(bb_min, bb_max, xres, yres, zres); // can integrate resolution into UI
                 ug.init_grid(V);
 
-                non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
+                // non_rigid_warping(V_temp, F_temp, landmarks, landmarks_temp, landmark_positions, V, ug, threshold);
 
                 viewer.data().clear();
                 viewer.data().set_mesh(V_total, F_total);
@@ -723,7 +771,7 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Align All Meshes", ImVec2(-1,0)))
             {
-                align_and_save_all(string("../data/smoothed/"), string("../data/aligned/"));
+                align_and_save_all(string("../data/smoothed/"), string("../data/aligned_tuned/"));
             }
         }
     };
