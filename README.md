@@ -57,7 +57,8 @@ The default number of eigenfaces is 8. After running SVD or directly loading the
 ## Repartition of work.
 
 ### Alessia Paccagnella
-Leader of the group, coordinated team and deadlines for the different steps. Worked on the preprocessing Laplacian smoothing step for our data. After smoothing our group's meshes, I marked and saved the landmarks. 
+- Leader of the group, coordinated team and deadlines for the different steps.
+- Worked on the preprocessing Laplacian smoothing step for our data. After smoothing our group's meshes, I marked and saved the landmarks. 
 
 ### Yingyan Xu
 
