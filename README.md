@@ -56,6 +56,7 @@ The default number of eigenfaces is 8. After running SVD or directly loading the
 ## Repartition of work.
 
 ### Alessia Paccagnella
+Leader of the group. Worked on the preprocessing smoothing step for the shapes. 
 
 ### Yingyan Xu
 
