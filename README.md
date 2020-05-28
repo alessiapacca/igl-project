@@ -36,7 +36,7 @@
 ## alignment update
 
 - smoothed meshes and landmark files in `data/smoothed`
-- mesh namelist saved in `data/smoothed/smoothed_mesh_list` (We splitted the meshes to be smoothed between groups. Each group had 12-13 meshes to be smoothed and their landmarks to be marked. However, group12 did not smooth their meshes, so our group did it also for them.)
+- mesh namelist saved in `data/smoothed/smoothed_mesh_list` (we splitted the meshes to be smoothed between groups. Each group had 12-13 meshes to be smoothed and their landmarks to be marked. However, group12 did not smooth their meshes, so our group did it also for them.)
 - click `Align All Meshes` to process all meshes and save alligned meshes in `data/aligned`
 
 ## PCA face
