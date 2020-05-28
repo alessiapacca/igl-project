@@ -84,8 +84,10 @@ MatrixXd landmark_positions(0, 3), landmark_positions_temp(0, 3);
 double threshold = 0.3;
 // resolution for uniform grid
 int xres = 50, yres = 50, zres = 50;
-// flag to record if we already run non_rigid_prepare when demo
-bool demo_init = false;
+// flag to choose high res or low res template for warping
+bool high_res = false;
+// incremental value for non-rigid warping iteration
+double inc = 0.2;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -138,8 +140,14 @@ void rigid_alignment(const string& objfile, const string& lmfile)
     igl::slice(V, landmarks, 1, landmark_positions);
 
     // load template
-    igl::read_triangle_mesh("../data/face_template/headtemplate_noneck_lesshead_4k.obj",V_temp,F_temp);    
-    read_landmarks(landmarks_temp, "../data/face_template/headtemplate_4k_landmarks.txt");
+    string tempobj("../data/face_template/headtemplate_noneck_lesshead_4k.obj");
+    string templm("../data/face_template/headtemplate_4k_landmarks.txt");
+    if (high_res) {
+        tempobj = string("../data/face_template/headtemplate_noneck.obj");
+        templm = string("../data/headtemplate_noneck_landmarks.txt");
+    }
+    igl::read_triangle_mesh(tempobj, V_temp,F_temp);    
+    read_landmarks(landmarks_temp, templm);
     igl::slice(V_temp, landmarks_temp, 1, landmark_positions_temp);
 
     // center template at (0,0,0)
@@ -738,8 +746,13 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Rigid Alignment", ImVec2(-1,0)))
             {
-                rigid_alignment(string("../data/smoothed/krispin_normal.obj"),
-                                string("../data/smoothed/krispin_normal.txt"));
+                string objfile("../data/smoothed/krispin_normal.obj");
+                string lmfile("../data/smoothed/krispin_normal.txt");
+                if (argc == 2) {
+                    objfile = argv[1];
+                    lmfile = string(objfile.begin(), objfile.end()-3) + string("txt");
+                }
+                rigid_alignment(objfile, lmfile);
                 MatrixXd V_total(V.rows() + V_temp.rows(), 3);
                 MatrixXi F_total(F.rows() + F_temp.rows(), 3);
                 V_total << V, V_temp;
@@ -774,7 +787,7 @@ int main(int argc, char *argv[])
                                 existing_constraints, clst_constraints, 
                                 V_temp, F_temp, V, ug, threshold);
                 
-                threshold += 0.3;
+                threshold += inc;
 
                 viewer.data().clear();
                 viewer.data().set_mesh(V_total, F_total);
@@ -802,6 +815,9 @@ int main(int argc, char *argv[])
             {
                 align_and_save_all(string("../data/smoothed/"), string("../data/aligned_tuned/"));
             }
+
+            ImGui::Checkbox("high res", &high_res);
+            ImGui::InputDouble("INC", &inc, 0, 0);
         }
     };
 
