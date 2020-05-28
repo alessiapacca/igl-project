@@ -265,7 +265,7 @@ void align_and_save_all(const string& datadir, const string& savedir)
             
             // #clst_point_constraints converges && enough points are closest to target mesh
             if(pre == cur && cur > 1500) break;
-            threshold += 0.1; // dynamicly change threshold
+            threshold += 0.1; // dynamically change threshold
             pre = cur;
         }
 
