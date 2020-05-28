@@ -89,6 +89,8 @@ int xres = 50, yres = 50, zres = 50;
 bool high_res = false;
 // incremental value for non-rigid warping iteration
 double inc = 0.2;
+// whether to increase the threshold each iteration
+bool fix_threshold = false;
 
 // max number of landmarks
 const int MAX_NUM_LANDMARK = 30;
@@ -815,7 +817,7 @@ int main(int argc, char *argv[])
                                 existing_constraints, clst_constraints, 
                                 V_temp, F_temp, V, ug, threshold);
                 
-                threshold += inc;
+                if (!fix_threshold) threshold += inc;
 
                 viewer.data().clear();
                 viewer.data().set_mesh(V_temp, F_temp);
@@ -845,6 +847,7 @@ int main(int argc, char *argv[])
             }
 
             ImGui::Checkbox("high res", &high_res);
+            ImGui::Checkbox("fix threshold", &fix_threshold);
             ImGui::InputDouble("INC", &inc, 0, 0);
         }
     };
