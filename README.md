@@ -17,24 +17,20 @@
 
 ---
 
-## rigid alignment example
-
-- Currently using only the provided landmark example
-- To be updated when more landmark data available
-- Click the `Rigid Alignment` button to see the demo
-
----
-
-## how to run non-rigid alignment example
+## How to run non-rigid alignment demo
 
 - Click the `Rigid Alignment` button first
-- Click the `Non-Rigid Warping` until the number of closest point constraint converges
-- Click the `Display Template` to see the warping result
-- If you reset threshold or resolution, start again from rigid alignment
+- Keep clicking `Non-Rigid Warping` until the result looks nice
+- Click `Display Template` to see the warped template
+- If you reset the resolution, start again from rigid alignment
+- Tik `high res` option to use high resolution template (The default is low resolution.)
+- `threshold` is now gradually increasing (change `INC` to set the increment per iteration), you can manually set `threshold` in each warping iteration
+
+*Note that when generating the aligned meshes, we use `INC = 0.1` and the termination condition is decided automatically.*
 
 ---
 
-## alignment update
+## Align all meshes
 
 - smoothed meshes and landmark files in `data/smoothed`
 - mesh namelist saved in `data/smoothed/smoothed_mesh_list` (we splitted the meshes to be smoothed between groups. Each group had 12-13 meshes to be smoothed and their landmarks to be marked. However, group 12 did not smooth their meshes, so our group did it also for them. Group 1 did not contribute to the work.)
@@ -62,8 +58,8 @@ The default number of eigenfaces is 8. After running SVD or directly loading the
 
 ### Yingyan Xu
 
-- Rigid Alignment
-- Non-rigid warping
+- Rigid Alignment.
+- Non-rigid warping.
 - Generate aligned meshes.
 
 ### Xiaojing Xia

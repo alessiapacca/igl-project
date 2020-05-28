@@ -841,7 +841,7 @@ int main(int argc, char *argv[])
 
             if (ImGui::Button("Align All Meshes", ImVec2(-1,0)))
             {
-                align_and_save_all(string("../data/smoothed/"), string("../data/aligned_tuned/"));
+                align_and_save_all(string("../data/smoothed/"), string("../data/aligned/"));
             }
 
             ImGui::Checkbox("high res", &high_res);
