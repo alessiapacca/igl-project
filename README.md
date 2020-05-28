@@ -99,3 +99,15 @@ N.B.: We all worked on the presentation slides and on the report.
 <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/rigid.png" width="200"/> <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/aligned.png" width="200"/> 
 
 ### PCA
+
+#### Mean Face
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mean_face.png" width="200"/>
+
+#### Example of a created smiling Face
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/example_pca_face.png" width="200"/>
+
+#### Face Morphing
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/face_morphing.gif" alt="animated">
+
