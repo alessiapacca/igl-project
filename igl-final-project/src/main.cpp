@@ -14,6 +14,7 @@
 #include <igl/repdiag.h>
 #include <igl/boundary_loop.h>
 #include "uniform_grid.h"
+#include <igl/writeOBJ.h>
 
 //activate this for alternate UI (easier to debug)
 //#define UPDATE_ONLY_ON_UP
@@ -504,6 +505,32 @@ void load_files_svd(std::string filename){
     inputFileStream.close();
 }
 
+void save_face_as_obj(std::string file="../saves/")
+{
+    if(!has_svd_run) {
+        std::cout << "Face Saving: First run SVD!" << std::endl;
+        return;
+    }
+
+    int num = 0;
+    std::string name = file + "save" + std::to_string(num) + ".obj";
+    std::ifstream f(name.c_str());
+    while(f.good()) {
+        f.close();
+        num++;
+        name = file + "save" + std::to_string(num) + ".obj";
+        f = std::ifstream(name.c_str());
+    }
+
+    Eigen::MatrixXd new_face = mean_face_V;
+    // std::cout << eigen_values << std::endl;
+    for (int i=0; i<nb_eigenfaces; i++){
+        new_face += eigen_faces[i] * eigen_face_weights[i];
+    }
+    igl::writeOBJ(name, new_face, mean_face_F);
+    std::cout << "Written to: " << name << std::endl;
+}
+
 void save_results_svd(std::string root="./results_eigenfaces/"){
     if (!has_svd_run)
     {
@@ -575,7 +602,7 @@ void compute_flattened_face(std::vector<std::string> files){
 
 void load_results_svd(std::string root="./results_eigenfaces/"){
     has_svd_run = true;
-
+    has_initialized_morph = true;
 
     std::string line;
 
@@ -811,7 +838,7 @@ int main(int argc, char *argv[])
     {
     // Define next window position + size
     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 650), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 680), ImGuiSetCond_FirstUseEver);
     ImGui::Begin(
       "Eigenfaces", nullptr,
       ImGuiWindowFlags_NoSavedSettings
@@ -860,6 +887,12 @@ int main(int argc, char *argv[])
 
         if (ImGui::SliderFloat("Morphing", &morph_weight, 0, 100))
             face_morphing();
+
+        float w = ImGui::GetContentRegionAvailWidth();
+        float p = ImGui::GetStyle().FramePadding.x;
+        if (ImGui::Button("Export Face (.OBJ)##Morphing", ImVec2((w-p), 0))){
+            save_face_as_obj();
+        }
     }
 
     if (ImGui::CollapsingHeader("Saving", ImGuiTreeNodeFlags_DefaultOpen)) {
