@@ -15,8 +15,6 @@
 
 ```
 
----
-
 ## How to run non-rigid alignment demo
 
 - Click the `Rigid Alignment` button first
@@ -28,7 +26,6 @@
 
 *Note that when generating the aligned meshes, we use `INC = 0.1` and the termination condition is decided automatically.*
 
----
 
 ## Align all meshes
 
