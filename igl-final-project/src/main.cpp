@@ -296,6 +296,7 @@ std::vector<double> min_weights(nb_eigenfaces, 10000);
 std::vector<double> max_weights(nb_eigenfaces, -10000);
 bool has_svd_run = false;
 bool has_initialized_morph = false;
+float weight_extrapolation = 1;
 
 std::vector<std::string> files_svd_eigenfaces_entry {"../data/aligned_faces_example/example1/fabian-brille.objaligned.obj", 
             "../data/aligned_faces_example/example1/fabian-neutral.objaligned.obj",
@@ -603,19 +604,19 @@ void load_results_svd(std::string root="./results_eigenfaces/"){
         igl::read_triangle_mesh(root+"eigen_face_"+std::to_string(i+1)+".off", eigen_faces[i], mean_face_F);
 
         std::getline(ifs_eigenvalues, line);
-        eigen_values[i] = std::stoi(line);
+        eigen_values[i] = std::stof(line);
 
 
         std::getline(ifs_weight_min, line);
-        min_weights[i] = std::stoi(line);
+        min_weights[i] = std::stof(line);
 
 
         std::getline(ifs_weight_max, line);
-        max_weights[i] = std::stoi(line);
+        max_weights[i] = std::stof(line);
 
 
         std::getline(ifs_variance_covered, line);
-        variance_covered[i] = std::stoi(line);
+        variance_covered[i] = std::stof(line);
     }
 
     igl::read_triangle_mesh(root+"mean_face.off", mean_face_V, mean_face_F);
@@ -810,7 +811,7 @@ int main(int argc, char *argv[])
     {
     // Define next window position + size
     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 450), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 650), ImGuiSetCond_FirstUseEver);
     ImGui::Begin(
       "Eigenfaces", nullptr,
       ImGuiWindowFlags_NoSavedSettings
@@ -839,15 +840,17 @@ int main(int argc, char *argv[])
 
     if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        ImGui::Text("Allow Weight Extrapolation:");
+        ImGui::InputFloat("Factor", &weight_extrapolation);
 
         for (int i=0; i<nb_eigenfaces; i++){
             ImGui::Text("Eigenface %d:   Variance Covered: %f", i+1, variance_covered[i]);
-            if (ImGui::SliderFloat(std::to_string(i+1).c_str(), &eigen_face_weights[i], min_weights[i], max_weights[i]))
+            if (ImGui::SliderFloat(std::to_string(i+1).c_str(), &eigen_face_weights[i], min_weights[i] * weight_extrapolation, max_weights[i] * weight_extrapolation))
                 eigen_face_update();
         }
     }
 
-    if (ImGui::CollapsingHeader("Morphing"), ImGuiTreeNodeFlags_DefaultOpen)
+    if (ImGui::CollapsingHeader("Morphing", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if(ImGui::SliderInt("Face ID 1", &f1_idx, 0, nb_faces - 1))
             face_morphing();
@@ -859,7 +862,7 @@ int main(int argc, char *argv[])
             face_morphing();
     }
 
-    if (ImGui::CollapsingHeader("Saving"), ImGuiTreeNodeFlags_DefaultOpen){
+    if (ImGui::CollapsingHeader("Saving", ImGuiTreeNodeFlags_DefaultOpen)) {
         float w = ImGui::GetContentRegionAvailWidth();
         float p = ImGui::GetStyle().FramePadding.x;
         if (ImGui::Button("Save Results##Saving", ImVec2((w-p), 0))){
