@@ -11,6 +11,7 @@
 1. Press S to go into Select Mode
 2. Click to select landmarks (vertices)
 3. Press A to apply landmark selection (or else selection will not be saved)
+4. Click save landmarks to save landmarks to a file.
 
 ```
 
@@ -60,7 +61,15 @@ Leader of the group. Worked on the preprocessing Laplacian smoothing step for th
 
 ### Yingyan Xu
 
+- Rigid Alignment
+- Non-rigid warping
+- Generate aligned meshes.
+
 ### Xiaojing Xia
+
+- Coordinated with the rest of the class to create a template for marking landmarks and splitting up the data for preprocessing among groups. 
+- Worked on the UI to mark and save landmarks.
+- Helped write framework of Non-rigid warping and generate aligned meshes.
 
 ### Alexandre Binninger
 
@@ -70,3 +79,20 @@ Running PCA on faces, some UI. Saving and Loading system for PCA results.
 
 
 N.B.: We all worked on the presentation slides and on the report.
+
+
+## Results
+
+### Smoothed meshes
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/smoothed.png" width="200"/>
+
+### Mark Landmarks
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mark_landmarks.png" width="200"/> 
+
+### Aligned (Rigid and Non rigid)
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/rigid.png" width="200"/> <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/aligned.png" width="200"/> 
+
+### PCA
