@@ -845,12 +845,14 @@ int main(int argc, char *argv[])
     );
 
     // Select the folder with all the faces
-    if (ImGui::CollapsingHeader("Meshes", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("SVD", ImGuiTreeNodeFlags_DefaultOpen))
     {
         float w = ImGui::GetContentRegionAvailWidth();
         float p = ImGui::GetStyle().FramePadding.x;
-        
-        if (ImGui::Button("Files to run SVD on##Saving", ImVec2((w-p), 0))){
+
+        ImGui::Text("Press 'P' to load precomputed SVD");
+
+        if (ImGui::Button("Select files to run SVD on##SVD", ImVec2((w-p), 0))){
             std::string list_file = igl::file_dialog_open();
             if(list_file.length() == 0)
                 std::cout << "Please select a list of the entry files for the eigenfaces decomposition.\n";
@@ -859,11 +861,35 @@ int main(int argc, char *argv[])
                 nb_faces = files_svd_eigenfaces_entry.size();
             }
         }
-        if (ImGui::Button("Run SVD##Meshes", ImVec2((w-p), 0)))
+        if (ImGui::Button("Run SVD##SVD", ImVec2((w-p), 0)))
         {
             eigen_face_computations(files_svd_eigenfaces_entry);
         }
     }
+
+        if (ImGui::CollapsingHeader("Save / Load")) {
+            float w = ImGui::GetContentRegionAvailWidth();
+            float p = ImGui::GetStyle().FramePadding.x;
+            if (ImGui::Button("Save Results##Save / Load", ImVec2((w-p), 0))){
+                save_results_svd("../saves/SVD/");
+                std::cout << "Results Saved in saves/SVD\n";
+            }
+
+            if (ImGui::Button("Load SVD Results##Save / Load", ImVec2((w-p), 0))){
+                std::string list_file = igl::file_dialog_open();
+                if(list_file.length() == 0)
+                    std::cout << "Please select a list of the entry files for loading the SVD results.\n";
+                else{
+                    std::ifstream ifs_list_file(list_file);
+                    string folder;
+                    if (ifs_list_file.is_open()){
+                        std::getline(ifs_list_file, folder);
+                    }
+                    ifs_list_file.close();
+                    load_results_svd(folder);
+                }
+            }
+        }
 
     if (ImGui::CollapsingHeader("Eigen Faces", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -892,30 +918,6 @@ int main(int argc, char *argv[])
         float p = ImGui::GetStyle().FramePadding.x;
         if (ImGui::Button("Export Face (.OBJ)##Morphing", ImVec2((w-p), 0))){
             save_face_as_obj();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Saving", ImGuiTreeNodeFlags_DefaultOpen)) {
-        float w = ImGui::GetContentRegionAvailWidth();
-        float p = ImGui::GetStyle().FramePadding.x;
-        if (ImGui::Button("Save Results##Saving", ImVec2((w-p), 0))){
-            save_results_svd();
-            std::cout << "Results Saved in ./results_eigenfaces.\n";
-        }
-
-        if (ImGui::Button("Load SVD Results##Saving", ImVec2((w-p), 0))){
-            std::string list_file = igl::file_dialog_open();
-            if(list_file.length() == 0)
-                std::cout << "Please select a list of the entry files for loading the SVD results.\n";
-            else{
-                std::ifstream ifs_list_file(list_file);
-                string folder;
-                if (ifs_list_file.is_open()){
-                    std::getline(ifs_list_file, folder);
-                }
-                ifs_list_file.close();
-                load_results_svd(folder);
-            }
         }
     }
 
@@ -999,6 +1001,11 @@ bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers)
     if (key == 'S')
     {
         mouse_mode = SELECT;
+        handled = true;
+    }
+    if (key == 'P')
+    {
+        load_results_svd("../data/precomputed_eigen_faces/");
         handled = true;
     }
 
