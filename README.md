@@ -73,7 +73,9 @@ Leader of the group. Worked on the preprocessing Laplacian smoothing step for th
 
 ### Alexandre Binninger
 
-Running PCA on faces, some UI. Saving and Loading system for PCA results.
+- PCA on faces.
+- Some UI for eigenfaces.
+- Saving and Loading system for PCA results.
 
 ### Niklaus Houska
 
