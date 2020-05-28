@@ -12,6 +12,7 @@
     <list default="true" id="abafd74e-2039-41c2-9818-3c7eae3084a3" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/igl-final-project/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/igl-final-project/src/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libigl" beforeDir="false" afterPath="$PROJECT_DIR$/libigl" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -68,6 +69,7 @@
       <workItem from="1589987232202" duration="758000" />
       <workItem from="1590043368212" duration="8507000" />
       <workItem from="1590132403904" duration="8083000" />
+      <workItem from="1590577465493" duration="7267000" />
     </task>
     <servers />
   </component>

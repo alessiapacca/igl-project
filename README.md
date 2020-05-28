@@ -11,6 +11,7 @@
 1. Press S to go into Select Mode
 2. Click to select landmarks (vertices)
 3. Press A to apply landmark selection (or else selection will not be saved)
+4. Click save landmarks to save landmarks to a file.
 
 ```
 
@@ -36,7 +37,7 @@
 ## alignment update
 
 - smoothed meshes and landmark files in `data/smoothed`
-- mesh namelist saved in `data/smoothed/smoothed_mesh_list` (not include group12)
+- mesh namelist saved in `data/smoothed/smoothed_mesh_list` (we splitted the meshes to be smoothed between groups. Each group had 12-13 meshes to be smoothed and their landmarks to be marked. However, group 12 did not smooth their meshes, so our group did it also for them. Group 1 did not contribute to the work.)
 - click `Align All Meshes` to process all meshes and save alligned meshes in `data/aligned`
 
 ## PCA face
@@ -56,16 +57,58 @@ The default number of eigenfaces is 8. After running SVD or directly loading the
 ## Repartition of work.
 
 ### Alessia Paccagnella
+- Leader of the group, coordinated team and deadlines for the different steps.
+- Worked on the preprocessing Laplacian smoothing step for our data. After smoothing our group's meshes, I marked and saved the landmarks. 
 
 ### Yingyan Xu
 
+- Rigid Alignment
+- Non-rigid warping
+- Generate aligned meshes.
+
 ### Xiaojing Xia
+
+- Coordinated with the rest of the class to create a template for marking landmarks and splitting up the data for preprocessing among groups. 
+- Worked on the UI to mark and save landmarks.
+- Helped write framework of Non-rigid warping and generate aligned meshes.
 
 ### Alexandre Binninger
 
-Running PCA on faces, some UI. Saving and Loading system for PCA results.
+- PCA on faces.
+- Some UI for eigenfaces.
+- Saving and Loading system for PCA results.
 
 ### Niklaus Houska
 
+- Eigen face user interaction, morphing and exporting
 
 N.B.: We all worked on the presentation slides and on the report.
+
+
+## Results
+
+### Smoothed meshes
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/smoothed.png" width="200"/>
+
+### Mark Landmarks
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mark_landmarks.png" width="200"/> 
+
+### Aligned (Rigid and Non rigid)
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/rigid.png" width="200"/> <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/aligned.png" width="200"/> 
+
+### PCA
+
+#### Mean Face
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mean_face.png" width="200"/>
+
+#### Example of a created smiling Face
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/example_pca_face.png" width="200"/>
+
+#### Face Morphing
+
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/face_morphing.gif" alt="animated">
+
