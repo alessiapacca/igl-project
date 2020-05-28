@@ -818,7 +818,7 @@ int main(int argc, char *argv[])
                 threshold += inc;
 
                 viewer.data().clear();
-                viewer.data().set_mesh(V_total, F_total);
+                viewer.data().set_mesh(V_temp, F_temp);
             }
 
             if (ImGui::Button("Display Template", ImVec2(-1,0)))

@@ -22,8 +22,8 @@
 - Click the `Rigid Alignment` button first
 - Keep clicking `Non-Rigid Warping` until the result looks nice
 - Click `Display Template` to see the warped template
-- If you reset the resolution, start again from rigid alignment
 - Tik `high res` option to use high resolution template (The default is low resolution.)
+- If you change the template resolution or grid resolution, start again from rigid alignment
 - `threshold` is now gradually increasing (change `INC` to set the increment per iteration), you can manually set `threshold` in each warping iteration
 
 *Note that when generating the aligned meshes, we use `INC = 0.1` and the termination condition is decided automatically.*
