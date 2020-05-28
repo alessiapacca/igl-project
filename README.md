@@ -85,14 +85,14 @@ N.B.: We all worked on the presentation slides and on the report.
 
 ### Smoothed meshes
 
-<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/smoothed.png" width="300"/>
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/smoothed.png" width="200"/>
 
 ### Mark Landmarks
 
-<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mark_landmarks.png" width="300"/> 
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/mark_landmarks.png" width="200"/> 
 
 ### Aligned (Rigid and Non rigid)
 
-<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/rigid.png" width="300"/> <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/aligned.png" width="300"/> 
+<img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/rigid.png" width="200"/> <img src="https://github.com/alessiapacca/igl-project/blob/master/igl-final-project/results/aligned.png" width="200"/> 
 
 ### PCA
