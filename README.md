@@ -80,6 +80,7 @@ The default number of eigenfaces is 8. After running SVD or directly loading the
 
 ### Niklaus Houska
 
+- Eigen face user interaction, morphing and exporting
 
 N.B.: We all worked on the presentation slides and on the report.
 
